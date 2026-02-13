@@ -3,6 +3,7 @@ Database connection and session management.
 """
 
 from typing import AsyncGenerator
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.pool import NullPool
 from bot.config import config
@@ -50,7 +51,7 @@ async def init_db() -> None:
     try:
         async with engine.begin() as conn:
             # Test connection
-            await conn.execute("SELECT 1")
+            await conn.execute(text("SELECT 1"))
         logger.info("Database connection established successfully")
     except Exception as e:
         logger.error(f"Failed to connect to database: {e}")
