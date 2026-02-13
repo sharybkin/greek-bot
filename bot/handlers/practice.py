@@ -40,13 +40,18 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
         return
     
     await callback.answer("Генерирую предложение...")
-    await callback.message.edit_text("⏳ Генерирую предложение для тебя...")
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+    
+    loading_msg = await callback.message.answer("⏳ Генерирую предложение для тебя...")
     
     # Get words from selected lessons
     words = await lesson_repo.get_words_by_lesson_ids(user.selected_lessons)
     
     if not words:
-        await callback.message.edit_text(
+        await loading_msg.edit_text(
             "❌ В выбранных уроках нет слов!",
             reply_markup=InlineKeyboards.back_to_menu()
         )
@@ -59,10 +64,17 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
     
     # Generate sentence
     greek_words = [w.greek_word for w in selected_words]
-    sentence_data = await ai_service.generate_sentence(greek_words, user.difficulty_level)
+    # sentence_data = await ai_service.generate_sentence(greek_words, user.difficulty_level)
+    
+    # Temporary test: invoke TTS on a single word directly without AI generation
+    word = selected_words[0]
+    sentence_data = {
+        "greek": word.greek_word,
+        "russian": word.russian_translation
+    }
     
     if not sentence_data:
-        await callback.message.edit_text(
+        await loading_msg.edit_text(
             "❌ Не удалось сгенерировать предложение. Попробуй ещё раз.",
             reply_markup=InlineKeyboards.back_to_menu()
         )
@@ -72,6 +84,7 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
     audio_bytes = await tts_service.synthesize(sentence_data["greek"])
     
     if not audio_bytes:
+        await loading_msg.delete()
         await callback.message.answer(
             f"🇬🇷 {sentence_data['greek']}\n\n❌ Не удалось сгенерировать аудио",
             reply_markup=InlineKeyboards.practice_controls()
@@ -91,40 +104,23 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
     
     # Send audio
     audio_file = BufferedInputFile(audio_bytes, filename="greek.mp3")
+    await loading_msg.delete()
+    caption = f"""🎧 Послушай предложение:
+
+🇬🇷 <tg-spoiler>{sentence_data['greek']}</tg-spoiler>
+🇷🇺 <tg-spoiler>{sentence_data['russian']}</tg-spoiler>"""
+    
     await callback.message.answer_voice(
         voice=audio_file,
-        caption="🎧 Послушай предложение:",
+        caption=caption,
+        parse_mode="HTML",
         reply_markup=InlineKeyboards.practice_controls()
     )
-    
-    # Delete loading message
-    await callback.message.delete()
     
     logger.info(f"Generated sentence for user {callback.from_user.id}")
 
 
-@router.callback_query(F.data == "show_greek")
-async def show_greek_text(callback: CallbackQuery, session: AsyncSession):
-    """Show Greek text."""
-    sentence_repo = SentenceRepository(session)
-    last_sentence = await sentence_repo.get_last_sentence(callback.from_user.id)
-    
-    if last_sentence:
-        await callback.answer(f"📝 {last_sentence.greek_sentence}", show_alert=True)
-    else:
-        await callback.answer("Нет предложения", show_alert=True)
 
-
-@router.callback_query(F.data == "show_russian")
-async def show_russian_translation(callback: CallbackQuery, session: AsyncSession):
-    """Show Russian translation."""
-    sentence_repo = SentenceRepository(session)
-    last_sentence = await sentence_repo.get_last_sentence(callback.from_user.id)
-    
-    if last_sentence:
-        await callback.answer(f"🇷🇺 {last_sentence.russian_translation}", show_alert=True)
-    else:
-        await callback.answer("Нет перевода", show_alert=True)
 
 
 @router.callback_query(F.data == "next_sentence")
@@ -153,7 +149,8 @@ async def forgot_words(callback: CallbackQuery, session: AsyncSession):
 Выбери слова, которые хочешь добавить в повторение:
 """
     
-    await callback.message.edit_text(
+    await callback.message.delete()
+    await callback.message.answer(
         text,
         reply_markup=InlineKeyboards.word_selection(words)
     )

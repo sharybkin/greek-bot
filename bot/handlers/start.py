@@ -65,7 +65,8 @@ async def cmd_help(message: Message):
 @router.callback_query(F.data == "main_menu")
 async def show_main_menu(callback: CallbackQuery):
     """Show main menu."""
-    await callback.message.edit_text(
+    await callback.message.delete()
+    await callback.message.answer(
         "🏠 **Главное меню**\n\nВыбери действие:",
         reply_markup=InlineKeyboards.main_menu()
     )

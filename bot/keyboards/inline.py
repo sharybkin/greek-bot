@@ -86,11 +86,9 @@ class InlineKeyboards:
     def practice_controls() -> InlineKeyboardMarkup:
         """Create practice control buttons."""
         buttons = [
-            [InlineKeyboardButton(text="📝 Показать текст", callback_data="show_greek")],
-            [InlineKeyboardButton(text="🇷🇺 Показать перевод", callback_data="show_russian")],
-            [InlineKeyboardButton(text="✅ Всё понятно", callback_data="next_sentence")],
-            [InlineKeyboardButton(text="❌ Забыл слова", callback_data="forgot_words")],
-            [InlineKeyboardButton(text="🏠 Вернуться в меню", callback_data="main_menu")]
+            [InlineKeyboardButton(text="✅ Всё понятно - дальше", callback_data="next_sentence")],
+            [InlineKeyboardButton(text="❌ Забыл слова - повторить", callback_data="forgot_words")],
+            [InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]
         ]
         return InlineKeyboardMarkup(inline_keyboard=buttons)
     
