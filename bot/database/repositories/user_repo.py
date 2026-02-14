@@ -6,7 +6,7 @@ from typing import Optional, List
 from datetime import datetime
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from bot.database.models import User
+from bot.database.models import User, Lesson
 from bot.utils.logger import logger
 
 
@@ -54,16 +54,20 @@ class UserRepository:
         Returns:
             Created User model
         """
+        # Get all existing lessons to select them by default
+        result = await self.session.execute(select(Lesson.id))
+        lesson_ids = [int(lid) for lid in result.scalars().all()]
+        
         user = User(
             telegram_id=telegram_id,
             username=username,
             first_name=first_name,
-            selected_lessons=[]  # Empty list by default
+            selected_lessons=lesson_ids  # Select all lessons by default
         )
         self.session.add(user)
         await self.session.commit()
         await self.session.refresh(user)
-        logger.info(f"Created new user: {telegram_id}")
+        logger.info(f"Created new user: {telegram_id} with {len(lesson_ids)} lessons selected")
         return user
     
     async def get_or_create(

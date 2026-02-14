@@ -32,23 +32,40 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
     
     # Check if lessons are selected
     if not user.selected_lessons:
-        await callback.message.edit_text(
-            "❌ Сначала выбери уроки для практики!",
-            reply_markup=InlineKeyboards.back_to_menu()
-        )
+        text = "❌ Сначала выбери уроки для практики!"
+        reply_markup = InlineKeyboards.back_to_menu()
+        
+        if callback.message.text:
+            await callback.message.edit_text(text, reply_markup=reply_markup)
+        else:
+            await callback.message.answer(text, reply_markup=reply_markup)
+            try:
+                await callback.message.delete()
+            except Exception:
+                pass
+        
         await callback.answer()
         return
     
     # Check generation limit for non-premium users
     can_generate, remaining = await user_repo.can_generate(callback.from_user.id)
     if not can_generate:
-        await callback.message.edit_text(
-            "⛔️ **Лимит генераций исчерпан**\\n\\n"
-            "Ты использовал все 3 бесплатные генерации на сегодня\\.\\n"
-            "Попробуй завтра или обратись к администратору для получения Premium\\-доступа\\!",
-            reply_markup=InlineKeyboards.back_to_menu(),
-            parse_mode="MarkdownV2"
+        text = (
+            "⛔️ Лимит генераций исчерпан\n\n"
+            "Ты использовал все 3 бесплатные генерации на сегодня.\n"
+            "Попробуй завтра или обратись к администратору для получения Premium-доступа!"
         )
+        reply_markup = InlineKeyboards.back_to_menu()
+        
+        if callback.message.text:
+            await callback.message.edit_text(text, reply_markup=reply_markup)
+        else:
+            await callback.message.answer(text, reply_markup=reply_markup)
+            try:
+                await callback.message.delete()
+            except Exception:
+                pass
+        
         await callback.answer()
         return
     
