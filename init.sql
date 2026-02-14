@@ -15,10 +15,7 @@ CREATE TABLE IF NOT EXISTS words (
     id SERIAL PRIMARY KEY,
     greek_word VARCHAR(200) NOT NULL,
     russian_translation VARCHAR(300) NOT NULL,
-    word_type VARCHAR(50),
     lesson_id INT REFERENCES lessons(id) ON DELETE CASCADE,
-    usage_example_greek TEXT,
-    usage_example_russian TEXT,
     created_at TIMESTAMP DEFAULT NOW()
 );
 

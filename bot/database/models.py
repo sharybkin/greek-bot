@@ -39,10 +39,7 @@ class Word(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     greek_word: Mapped[str] = mapped_column(String(200), nullable=False)
     russian_translation: Mapped[str] = mapped_column(String(300), nullable=False)
-    word_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     lesson_id: Mapped[int] = mapped_column(Integer, ForeignKey("lessons.id", ondelete="CASCADE"))
-    usage_example_greek: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    usage_example_russian: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     
     # Relationships
