@@ -93,7 +93,7 @@ greek-bot/
 │   ├── utils/             # Утилиты
 │   ├── config.py          # Конфигурация
 │   └── main.py            # Точка входа
-├── audio_cache/           # Кеш аудио файлов
+
 ├── logs/                  # Логи
 ├── docker-compose.yml     # Docker конфигурация
 ├── Dockerfile             # Docker образ
@@ -145,7 +145,7 @@ docker exec -it greek_bot_db psql -U greekbot -d greek_learning
 
 ### Проблемы с аудио
 - Проверь квоту Google Cloud TTS
-- Проверь права на директорию `audio_cache/`
+
 
 ## 📊 Лимиты API
 
