@@ -94,8 +94,8 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
         return
     
     # Select random words based on difficulty
-    difficulty_word_count = {1: 4, 2: 7, 3: 12}
-    word_count = difficulty_word_count.get(user.difficulty_level, 4)
+    difficulty_word_count = {1: 2, 2: 5, 3: 8}
+    word_count = difficulty_word_count.get(user.difficulty_level, 2)
     selected_words = random.sample(words, min(word_count, len(words)))
     
     # Generate sentence

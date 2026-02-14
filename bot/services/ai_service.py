@@ -30,25 +30,35 @@ class AIService:
             Formatted prompt string
         """
         word_count_map = {
-            1: (4, 10),
-            2: (7, 15),
-            3: (12, 25)
+            1: (3, 5),
+            2: (6, 9),
+            3: (10, 15)
         }
-        min_words, max_words = word_count_map.get(difficulty, (4, 10))
+        min_words, max_words = word_count_map.get(difficulty, (3, 5))
         
         word_list = ", ".join(words)
         
-        prompt = f"""Составь ОДНО полноценное, длинное и естественное предложение на греческом языке.
+        if difficulty == 1:
+            instruction = f"Составь ОДНО простое, короткое и естественное предложение на греческом языке."
+            complexity_note = "Это должно быть простое предложение, понятное новичку."
+        elif difficulty == 2:
+            instruction = f"Составь ОДНО полноценное и естественное предложение на греческом языке."
+            complexity_note = "Это должно быть предложение средней сложности."
+        else:
+            instruction = f"Составь ОДНО полноценное, длинное и естественное предложение на греческом языке."
+            complexity_note = "Это должно быть грамматически богатое предложение (развернутая мысль)."
+
+        prompt = f"""{instruction}
 
 **ОСНОВНЫЕ СЛОВА ДЛЯ ПРЕДЛОЖЕНИЯ:**
 {word_list}
 
 **ОБЯЗАТЕЛЬНЫЕ ТРЕБОВАНИЯ:**
 1. Длина предложения: СТРОГО ОТ {min_words} ДО {max_words} слов.
-2. Это должно быть ПОЛНОЕ ПРЕДЛОЖЕНИЕ со смыслом (развернутая мысль), а не просто фраза из двух слов.
+2. {complexity_note}
 3. Используй слова из списка выше как основу (можно менять их формы: падеж, число, время глагола).
-4. ОБЯЗАТЕЛЬНО добавляй артикли, предлоги, союзы и другие связующие слова (π.χ. γιατί, όταν, μετά...).
-5. Даже если в списке мало слов, придумай контекст вокруг них, чтобы предложение было интересным и полезным для обучения.
+4. Добавляй артикли, предлоги и союзы для связности.
+5. Придумай подходящий контекст для слов, чтобы предложение было полезным для обучения.
 
 **ФОРМАТ ОТВЕТА (строго JSON):**
 {{
@@ -106,8 +116,16 @@ class AIService:
                     
                     if greek_sentence and russian_translation:
                         word_count = len(greek_sentence.split())
-                        if word_count < 3:
-                            logger.warning(f"AI returned too short sentence ({word_count} words), retrying: {greek_sentence}")
+                        
+                        # Get boundaries for validation
+                        word_count_map = {1: (3, 5), 2: (6, 9), 3: (10, 15)}
+                        min_w, max_w = word_count_map.get(difficulty, (3, 5))
+                        
+                        if word_count < min_w or word_count > max_w:
+                            logger.warning(
+                                f"AI returned sentence with wrong length ({word_count} words, expected {min_w}-{max_w}), "
+                                f"retrying: {greek_sentence}"
+                            )
                             continue
 
                         logger.info(f"Successfully generated sentence: {greek_sentence}")
