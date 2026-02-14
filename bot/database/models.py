@@ -70,6 +70,9 @@ class User(Base):
         CheckConstraint("difficulty_level BETWEEN 1 AND 3"),
         default=1
     )
+    is_premium: Mapped[bool] = mapped_column(Boolean, default=False)
+    daily_generation_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_generation_reset: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     last_active_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     

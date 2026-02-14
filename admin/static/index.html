@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Greek Bot Admin Panel</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1 class="logo">🇬🇷 Greek Bot Admin</h1>
+                <button class="refresh-btn" onclick="loadData()">
+                    <span class="refresh-icon">↻</span> Обновить
+                </button>
+            </div>
+        </header>
+
+        <!-- Statistics Cards -->
+        <section class="stats-section">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-content">
+                        <div class="stat-label">Всего пользователей</div>
+                        <div class="stat-value" id="total-users">-</div>
+                    </div>
+                </div>
+                
+                <div class="stat-card premium">
+                    <div class="stat-icon">⭐</div>
+                    <div class="stat-content">
+                        <div class="stat-label">Premium</div>
+                        <div class="stat-value" id="premium-users">-</div>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">📝</div>
+                    <div class="stat-content">
+                        <div class="stat-label">Предложений сегодня</div>
+                        <div class="stat-value" id="sentences-today">-</div>
+                    </div>
+                </div>
+                
+                <div class="stat-card active">
+                    <div class="stat-icon">🔥</div>
+                    <div class="stat-content">
+                        <div class="stat-label">Активных (7 дней)</div>
+                        <div class="stat-value" id="active-users">-</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Users Table -->
+        <section class="users-section">
+            <div class="section-header">
+                <h2>Управление пользователями</h2>
+                <div class="filters">
+                    <input type="text" id="search-input" placeholder="🔍 Поиск по имени или ID..." class="search-input">
+                    <select id="filter-premium" class="filter-select">
+                        <option value="all">Все пользователи</option>
+                        <option value="premium">Premium</option>
+                        <option value="regular">Обычные</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Имя</th>
+                            <th>Username</th>
+                            <th>Статус</th>
+                            <th>Генераций сегодня</th>
+                            <th>Всего предложений</th>
+                            <th>Активность (7д)</th>
+                            <th>Сложность</th>
+                            <th>Дата регистрации</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-tbody">
+                        <tr>
+                            <td colspan="10" class="loading-cell">
+                                <div class="loader"></div>
+                                Загрузка данных...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

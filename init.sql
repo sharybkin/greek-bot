@@ -32,6 +32,9 @@ CREATE TABLE IF NOT EXISTS users (
     current_lesson_id INT REFERENCES lessons(id) ON DELETE SET NULL,
     selected_lessons JSONB DEFAULT '[]'::jsonb,  -- Массив ID выбранных уроков
     difficulty_level INT DEFAULT 1 CHECK (difficulty_level BETWEEN 1 AND 3),
+    is_premium BOOLEAN DEFAULT FALSE,  -- Premium статус пользователя
+    daily_generation_count INT DEFAULT 0,  -- Количество генераций за сегодня
+    last_generation_reset TIMESTAMP DEFAULT NOW(),  -- Последний сброс счетчика
     created_at TIMESTAMP DEFAULT NOW(),
     last_active_at TIMESTAMP DEFAULT NOW()
 );

@@ -39,13 +39,32 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
         await callback.answer()
         return
     
+    # Check generation limit for non-premium users
+    can_generate, remaining = await user_repo.can_generate(callback.from_user.id)
+    if not can_generate:
+        await callback.message.edit_text(
+            "⛔️ **Лимит генераций исчерпан**\\n\\n"
+            "Ты использовал все 3 бесплатные генерации на сегодня\\.\\n"
+            "Попробуй завтра или обратись к администратору для получения Premium\\-доступа\\!",
+            reply_markup=InlineKeyboards.back_to_menu(),
+            parse_mode="MarkdownV2"
+        )
+        await callback.answer()
+        return
+    
     await callback.answer("Генерирую предложение...")
     try:
         await callback.message.delete()
     except Exception:
         pass
     
-    loading_msg = await callback.message.answer("⏳ Генерирую предложение для тебя...")
+    # Show remaining generations for non-premium users
+    if remaining > 0:
+        loading_msg = await callback.message.answer(
+            f"⏳ Генерирую предложение для тебя...\n💡 Осталось генераций сегодня: {remaining - 1}"
+        )
+    else:
+        loading_msg = await callback.message.answer("⏳ Генерирую предложение для тебя...")
     
     # Get words from selected lessons
     words = await lesson_repo.get_words_by_lesson_ids(user.selected_lessons)
@@ -95,6 +114,9 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
         word_ids=word_ids,
         difficulty_level=user.difficulty_level
     )
+    
+    # Increment generation count
+    await user_repo.increment_generation_count(callback.from_user.id)
     
     # Send audio
     audio_file = BufferedInputFile(audio_bytes, filename="greek.mp3")

@@ -152,3 +152,103 @@ class UserRepository:
         )
         await self.session.commit()
         logger.info(f"Updated difficulty for user {telegram_id}: {difficulty}")
+    
+    async def update_premium_status(self, telegram_id: int, is_premium: bool) -> None:
+        """
+        Update user's premium status.
+        
+        Args:
+            telegram_id: Telegram user ID
+            is_premium: Premium status
+        """
+        await self.session.execute(
+            update(User)
+            .where(User.telegram_id == telegram_id)
+            .values(is_premium=is_premium)
+        )
+        await self.session.commit()
+        logger.info(f"Updated premium status for user {telegram_id}: {is_premium}")
+    
+    async def check_and_reset_generation_count(self, telegram_id: int) -> None:
+        """
+        Check if generation count needs to be reset (new day) and reset if needed.
+        
+        Args:
+            telegram_id: Telegram user ID
+        """
+        user = await self.get_by_telegram_id(telegram_id)
+        if not user:
+            return
+        
+        now = datetime.now()
+        # Check if last reset was on a different day
+        if user.last_generation_reset.date() < now.date():
+            await self.session.execute(
+                update(User)
+                .where(User.telegram_id == telegram_id)
+                .values(
+                    daily_generation_count=0,
+                    last_generation_reset=now
+                )
+            )
+            await self.session.commit()
+            logger.info(f"Reset generation count for user {telegram_id}")
+    
+    async def increment_generation_count(self, telegram_id: int) -> None:
+        """
+        Increment user's daily generation count.
+        
+        Args:
+            telegram_id: Telegram user ID
+        """
+        await self.session.execute(
+            update(User)
+            .where(User.telegram_id == telegram_id)
+            .values(daily_generation_count=User.daily_generation_count + 1)
+        )
+        await self.session.commit()
+    
+    async def can_generate(self, telegram_id: int) -> tuple[bool, int]:
+        """
+        Check if user can generate a new sentence.
+        
+        Args:
+            telegram_id: Telegram user ID
+            
+        Returns:
+            Tuple of (can_generate, remaining_count)
+        """
+        await self.check_and_reset_generation_count(telegram_id)
+        user = await self.get_by_telegram_id(telegram_id)
+        
+        if not user:
+            return False, 0
+        
+        # Premium users have unlimited generations
+        if user.is_premium:
+            return True, -1  # -1 indicates unlimited
+        
+        # Regular users have 3 generations per day
+        max_generations = 3
+        remaining = max_generations - user.daily_generation_count
+        return remaining > 0, remaining
+    
+    async def get_all_users(self, limit: int = 100, offset: int = 0) -> List[User]:
+        """
+        Get all users with pagination.
+        
+        Args:
+            limit: Maximum number of users to return
+            offset: Number of users to skip
+            
+        Returns:
+            List of User models
+        """
+        result = await self.session.execute(
+            select(User)
+            .order_by(User.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        return list(result.scalars().all())
+

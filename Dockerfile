@@ -14,6 +14,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Копирование кода
 COPY bot/ ./bot/
+COPY admin/ ./admin/
+COPY run_admin.py .
 COPY .env .env
 
 # Создание директории для кеша

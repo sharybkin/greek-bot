@@ -39,6 +39,29 @@ services:
       - ./audio_cache:/app/audio_cache
       - ./google-credentials.json:/app/google-credentials.json:ro
       - ./logs:/app/logs
+    networks:
+      - greek_bot_network
+
+  admin:
+    build: .
+    container_name: greek_bot_admin
+    command: python run_admin.py
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - DATABASE_URL=postgresql+asyncpg://greekbot:${DB_PASSWORD}@postgres:5432/greek_learning
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/google-credentials.json
+      - DB_PASSWORD=${DB_PASSWORD}
+      - LOG_LEVEL=INFO
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./audio_cache:/app/audio_cache
+      - ./google-credentials.json:/app/google-credentials.json:ro
+      - ./logs:/app/logs
     restart: unless-stopped
     networks:
       - greek_bot_network
