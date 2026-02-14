@@ -64,14 +64,8 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
     
     # Generate sentence
     greek_words = [w.greek_word for w in selected_words]
-    # sentence_data = await ai_service.generate_sentence(greek_words, user.difficulty_level)
-    
-    # Temporary test: invoke TTS on a single word directly without AI generation
-    word = selected_words[0]
-    sentence_data = {
-        "greek": word.greek_word,
-        "russian": word.russian_translation
-    }
+    logger.info(f"Selected words for sentence generation: {greek_words}")
+    sentence_data = await ai_service.generate_sentence(greek_words, user.difficulty_level)
     
     if not sentence_data:
         await loading_msg.edit_text(

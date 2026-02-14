@@ -21,7 +21,7 @@ class TTSService:
         # TTS configuration
         self.voice = texttospeech.VoiceSelectionParams(
             language_code="el-GR",
-            name="el-GR-Standard-A",
+            name="el-GR-Chirp3-HD-Aoede",
             ssml_gender=texttospeech.SsmlVoiceGender.FEMALE
         )
         
