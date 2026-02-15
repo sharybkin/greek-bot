@@ -18,12 +18,13 @@ class AIService:
         self.model = "llama-3.3-70b-versatile"
         self.max_retries = 3
     
-    def _create_prompt(self, words: List[str], difficulty: int) -> str:
+    def _create_prompt(self, review_words: List[str], general_words: List[str], difficulty: int) -> str:
         """
         Create prompt for sentence generation.
         
         Args:
-            words: List of Greek words to use
+            review_words: List of mandatory Greek words (must be used)
+            general_words: List of optional Greek words (can be used)
             difficulty: Difficulty level (1=easy, 2=medium, 3=hard)
             
         Returns:
@@ -36,8 +37,6 @@ class AIService:
         }
         min_words, max_words = word_count_map.get(difficulty, (3, 5))
         
-        word_list = ", ".join(words)
-        
         if difficulty == 1:
             instruction = f"Составь ОДНО простое, короткое и естественное предложение на греческом языке."
             complexity_note = "Это должно быть простое предложение, понятное новичку."
@@ -48,51 +47,62 @@ class AIService:
             instruction = f"Составь ОДНО полноценное, длинное и естественное предложение на греческом языке."
             complexity_note = "Это должно быть грамматически богатое предложение (развернутая мысль)."
 
+        review_list = ", ".join(review_words)
+        general_list = ", ".join(general_words)
+
         prompt = f"""{instruction}
 
-**ОСНОВНЫЕ СЛОВА ДЛЯ ПРЕДЛОЖЕНИЯ:**
-{word_list}
+**ОБЯЗАТЕЛЬНЫЕ СЛОВА (использовать минимум одно, лучше все):**
+{review_list}
+
+**ДОПОЛНИТЕЛЬНЫЕ СЛОВА (можно использовать для связности):**
+{general_list}
 
 **ОБЯЗАТЕЛЬНЫЕ ТРЕБОВАНИЯ:**
 1. Длина предложения: СТРОГО ОТ {min_words} ДО {max_words} слов.
 2. {complexity_note}
-3. Используй слова из списка выше как основу (можно менять их формы: падеж, число, время глагола).
-4. Добавляй артикли, предлоги и союзы для связности.
-5. Придумай подходящий контекст для слов, чтобы предложение было полезным для обучения.
+3. Cтарайтесь использовать ОБЯЗАТЕЛЬНЫЕ СЛОВА. Дополнительные слова используйте по необходимости.
+4. Можно менять формы слов (падеж, число, время глагола).
+5. Добавляй артикли, предлоги и союзы для связности.
+6. Придумай подходящий контекст для слов, чтобы предложение было полезным для обучения.
 
 **ФОРМАТ ОТВЕТА (строго JSON):**
 {{
   "greek": "полное греческое предложение",
-  "russian": "перевод всего предложения на русский"
+  "russian": "перевод всего предложения на русский",
+  "used_greek_words": ["слово1", "слово2"]  // Список греческих слов из переданных списков, которые реально были использованы (в их исходной форме из списка)
 }}"""
         
         return prompt
     
     async def generate_sentence(
         self,
-        words: List[str],
+        review_words: List[str],
+        general_words: List[str],
         difficulty: int
-    ) -> Optional[Dict[str, str]]:
+    ) -> Optional[Dict[str, any]]:
         """
         Generate a sentence using given words.
         
         Args:
-            words: List of Greek words to use
+            review_words: List of mandatory Greek words
+            general_words: List of optional Greek words
             difficulty: Difficulty level (1-3)
             
         Returns:
-            Dictionary with 'greek' and 'russian' keys or None if failed
+            Dictionary with 'greek', 'russian', and 'used_greek_words' keys or None if failed
         """
-        if not words:
+        if not review_words and not general_words:
             logger.error("No words provided for sentence generation")
             return None
         
-        prompt = self._create_prompt(words, difficulty)
+        prompt = self._create_prompt(review_words, general_words, difficulty)
         system_prompt = "Ты - опытный лингвист и преподаватель греческого. Ты умеешь составлять глубокие, грамматически богатые предложения (с использованием придаточных предложений, союзов и артиклей), используя заданный набор слов. Твои ответы всегда в формате JSON."
         
         for attempt in range(self.max_retries):
             try:
-                logger.info(f"Generating sentence (attempt {attempt + 1}/{self.max_retries}) using words: {words}")
+                logger.info(f"Generating sentence (attempt {attempt + 1}/{self.max_retries})")
+                logger.debug(f"Review words: {review_words}, General words: {general_words}")
                 
                 response = self.client.chat.completions.create(
                     model=self.model,
@@ -131,7 +141,8 @@ class AIService:
                         logger.info(f"Successfully generated sentence: {greek_sentence}")
                         return {
                             "greek": greek_sentence,
-                            "russian": russian_translation
+                            "russian": russian_translation,
+                            "used_greek_words": result.get("used_greek_words", [])
                         }
                 
                 logger.warning(f"Invalid response format or too short on attempt {attempt + 1}")

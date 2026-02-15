@@ -45,19 +45,27 @@ class ReviewRepository:
                     )
                 )
             )
-            if existing.scalar_one_or_none():
-                continue
+            review = existing.scalar_one_or_none()
             
-            review = ReviewWord(
-                user_telegram_id=user_telegram_id,
-                word_id=word_id,
-                next_review_at=now  # Available immediately
-            )
-            self.session.add(review)
-            created_reviews.append(review)
+            if review:
+                # Reset progress for existing review word
+                review.review_count = 0
+                review.mastered = False
+                review.next_review_at = now
+                review.last_reviewed_at = None
+                created_reviews.append(review)
+            else:
+                # Create new review word
+                review = ReviewWord(
+                    user_telegram_id=user_telegram_id,
+                    word_id=word_id,
+                    next_review_at=now  # Available immediately
+                )
+                self.session.add(review)
+                created_reviews.append(review)
         
         await self.session.commit()
-        logger.info(f"Added {len(created_reviews)} words to review for user {user_telegram_id}")
+        logger.info(f"Added/Updated {len(created_reviews)} words to review for user {user_telegram_id}")
         return created_reviews
     
     async def get_due_reviews(

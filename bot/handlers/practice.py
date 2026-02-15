@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bot.database.repositories.user_repo import UserRepository
 from bot.database.repositories.lesson_repo import LessonRepository
 from bot.database.repositories.sentence_repo import SentenceRepository
+from bot.database.repositories.review_repo import ReviewRepository
 from bot.services.ai_service import AIService
 from bot.services.tts_service import TTSService
 from bot.keyboards.inline import InlineKeyboards
@@ -27,6 +28,7 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
     """Start practice session."""
     user_repo = UserRepository(session)
     lesson_repo = LessonRepository(session)
+    review_repo = ReviewRepository(session)
     
     user = await user_repo.get_by_telegram_id(callback.from_user.id)
     
@@ -84,24 +86,46 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
         loading_msg = await callback.message.answer("⏳ Генерирую предложение для тебя...")
     
     # Get words from selected lessons
-    words = await lesson_repo.get_words_by_lesson_ids(user.selected_lessons)
+    lesson_words = await lesson_repo.get_words_by_lesson_ids(user.selected_lessons)
     
-    if not words:
+    if not lesson_words:
         await loading_msg.edit_text(
             "❌ В выбранных уроках нет слов!",
             reply_markup=InlineKeyboards.back_to_menu()
         )
         return
     
+    # Get review words
+    review_words_list = await review_repo.get_due_reviews(callback.from_user.id, limit=5)
+    review_words = [rw.word for rw in review_words_list]
+
     # Select random words based on difficulty
-    difficulty_word_count = {1: 2, 2: 5, 3: 8}
-    word_count = difficulty_word_count.get(user.difficulty_level, 2)
-    selected_words = random.sample(words, min(word_count, len(words)))
+    difficulty_word_count = {1: 3, 2: 6, 3: 10}
+    total_needed = difficulty_word_count.get(user.difficulty_level, 3)
     
-    # Generate sentence
-    greek_words = [w.greek_word for w in selected_words]
-    logger.info(f"Selected words for sentence generation: {greek_words}")
-    sentence_data = await ai_service.generate_sentence(greek_words, user.difficulty_level)
+    # Calculate how many general words we need
+    needed_general = max(0, total_needed - len(review_words))
+    
+    # Filter out review words from general pool to avoid duplicates
+    review_word_ids = {w.id for w in review_words}
+    available_general = [w for w in lesson_words if w.id not in review_word_ids]
+    
+    selected_general = random.sample(
+        available_general, 
+        min(needed_general + 2, len(available_general))
+    )
+    
+    # Prepare lists for AI
+    review_greek = [w.greek_word for w in review_words]
+    general_greek = [w.greek_word for w in selected_general]
+    
+    logger.info(f"Generating with Review: {review_greek}, General: {general_greek}")
+    
+    sentence_data = await ai_service.generate_sentence(
+        review_words=review_greek, 
+        general_words=general_greek, 
+        difficulty=user.difficulty_level
+    )
     
     if not sentence_data:
         await loading_msg.edit_text(
@@ -109,6 +133,34 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
             reply_markup=InlineKeyboards.back_to_menu()
         )
         return
+        
+    # Process used words
+    used_greek_words = sentence_data.get("used_greek_words", [])
+    
+    # Find word objects for used words
+    # We check against both lists
+    all_candidate_words = review_words + selected_general
+    used_word_objects = []
+    used_review_ids = []
+    
+    # Normalize for comparison (simple case insensitive)
+    used_greek_normalized = [w.lower().strip() for w in used_greek_words]
+    
+    for word in all_candidate_words:
+        if word.greek_word.lower().strip() in used_greek_normalized:
+            used_word_objects.append(word)
+            if word.id in review_word_ids:
+                used_review_ids.append(word.id)
+    
+    # If AI didn't return used words correctly, fallback to all selected
+    if not used_word_objects:
+        logger.warning("AI didn't return valid used words, falling back to all inputs")
+        used_word_objects = review_words + selected_general[:needed_general]
+    
+    # Update progress for review words that were used
+    for review in review_words_list:
+        if review.word_id in used_review_ids:
+            await review_repo.update_review_progress(review.id, success=True)
     
     # Generate audio
     audio_bytes = await tts_service.synthesize(sentence_data["greek"])
@@ -123,7 +175,7 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
     
     # Save to history
     sentence_repo = SentenceRepository(session)
-    word_ids = [w.id for w in selected_words]
+    word_ids = [w.id for w in used_word_objects]
     await sentence_repo.create(
         user_telegram_id=callback.from_user.id,
         greek_sentence=sentence_data["greek"],
