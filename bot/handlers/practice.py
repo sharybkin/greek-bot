@@ -3,6 +3,7 @@ Practice handler - main learning module.
 """
 
 import random
+from datetime import datetime
 from io import BytesIO
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, BufferedInputFile
@@ -95,34 +96,66 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
         )
         return
     
-    # Get review words
-    review_words_list = await review_repo.get_due_reviews(callback.from_user.id, limit=5)
+    # Get review words (limit 1 for now as per requirements)
+    review_words_list = await review_repo.get_due_reviews(callback.from_user.id, limit=1)
     review_words = [rw.word for rw in review_words_list]
 
-    # Select random words based on difficulty
+    # Get word statistics for LRU selection
+    sentence_repo = SentenceRepository(session)
+    word_usage = await sentence_repo.get_word_last_usage(callback.from_user.id)
+    
+    # Sort lesson words by last usage (None first, then oldest)
+    # We assign a default very old date for never used words to safely sort
+    never_used_date = datetime.min
+    
+    sorted_lesson_words = sorted(
+        lesson_words,
+        key=lambda w: word_usage.get(w.id, never_used_date)
+    )
+
+    # Determine how many mandatory words we need
     difficulty_word_count = {1: 3, 2: 6, 3: 10}
-    total_needed = difficulty_word_count.get(user.difficulty_level, 3)
+    target_count = difficulty_word_count.get(user.difficulty_level, 3)
     
-    # Calculate how many general words we need
-    needed_general = max(0, total_needed - len(review_words))
+    # Start mandatory list with review words
+    mandatory_words = list(review_words)
+    mandatory_ids = {w.id for w in mandatory_words}
     
-    # Filter out review words from general pool to avoid duplicates
-    review_word_ids = {w.id for w in review_words}
-    available_general = [w for w in lesson_words if w.id not in review_word_ids]
+    # Fill remaining mandatory slots from LRU list
+    # Skip words already in mandatory list (e.g. if review word is also in lesson words)
+    remaining_slots = max(0, target_count - len(mandatory_words))
     
+    for word in sorted_lesson_words:
+        if remaining_slots <= 0:
+            break
+        if word.id not in mandatory_ids:
+            mandatory_words.append(word)
+            mandatory_ids.add(word.id)
+            remaining_slots -= 1
+            
+    # Select context words (General words)
+    # These are optional words that AI CAN use but doesn't HAVE to
+    # We pick from the remaining pool
+    available_general = [w for w in sorted_lesson_words if w.id not in mandatory_ids]
+    
+    # Select 15-20 general words
+    general_pool_size = random.randint(15, 20)
+    # We can pick randomly from available to give variety, 
+    # or continue picking from LRU if we want to force rotation even for helper words.
+    # Random from available seems better for context variety.
     selected_general = random.sample(
         available_general, 
-        min(needed_general + 2, len(available_general))
+        min(general_pool_size, len(available_general))
     )
     
     # Prepare lists for AI
-    review_greek = [w.greek_word for w in review_words]
+    mandatory_greek = [w.greek_word for w in mandatory_words]
     general_greek = [w.greek_word for w in selected_general]
     
-    logger.info(f"Generating with Review: {review_greek}, General: {general_greek}")
+    logger.info(f"Generating with Mandatory: {mandatory_greek}, General: {general_greek}")
     
     sentence_data = await ai_service.generate_sentence(
-        review_words=review_greek, 
+        review_words=mandatory_greek, 
         general_words=general_greek, 
         difficulty=user.difficulty_level
     )
@@ -139,23 +172,32 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
     
     # Find word objects for used words
     # We check against both lists
-    all_candidate_words = review_words + selected_general
+    all_candidate_words = mandatory_words + selected_general
     used_word_objects = []
     used_review_ids = []
     
     # Normalize for comparison (simple case insensitive)
     used_greek_normalized = [w.lower().strip() for w in used_greek_words]
     
+    # Track which mandatory words were actually used
+    used_mandatory_ids = []
+
     for word in all_candidate_words:
         if word.greek_word.lower().strip() in used_greek_normalized:
             used_word_objects.append(word)
-            if word.id in review_word_ids:
-                used_review_ids.append(word.id)
+            # Check if this used word was a review word
+            # We need to find the specific review entry for this word id
+            for review_item in review_words_list:
+                if review_item.word_id == word.id:
+                    used_review_ids.append(review_item.id)
+            
+            if word.id in mandatory_ids:
+                used_mandatory_ids.append(word.id)
     
-    # If AI didn't return used words correctly, fallback to all selected
+    # Fallback if AI didn't return valid used words
     if not used_word_objects:
-        logger.warning("AI didn't return valid used words, falling back to all inputs")
-        used_word_objects = review_words + selected_general[:needed_general]
+        logger.warning("AI didn't return valid used words, falling back to mandatory words")
+        used_word_objects = mandatory_words
     
     # Update progress for review words that were used
     for review in review_words_list:

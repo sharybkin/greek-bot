@@ -59,7 +59,7 @@ class ReviewRepository:
                 review = ReviewWord(
                     user_telegram_id=user_telegram_id,
                     word_id=word_id,
-                    next_review_at=now  # Available immediately
+                    next_review_at=now + timedelta(hours=1)  # Available in 1 hour
                 )
                 self.session.add(review)
                 created_reviews.append(review)

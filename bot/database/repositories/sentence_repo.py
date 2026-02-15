@@ -2,8 +2,9 @@
 Sentence history repository.
 """
 
+from datetime import datetime
 from typing import List, Optional
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from bot.database.models import SentenceHistory
 from bot.utils.logger import logger
@@ -92,3 +93,27 @@ class SentenceRepository:
             .limit(1)
         )
         return result.scalar_one_or_none()
+    
+    async def get_word_last_usage(self, user_telegram_id: int) -> dict[int, datetime]:
+        """
+        Get last usage time for each word.
+        
+        Args:
+            user_telegram_id: Telegram user ID
+            
+        Returns:
+            Dictionary {word_id: last_used_datetime}
+        """
+        # We need to unnest the array of word_ids and find max created_at for each
+        stmt = (
+            select(
+                func.unnest(SentenceHistory.word_ids).label('word_id'),
+                func.max(SentenceHistory.created_at).label('last_used')
+            )
+            .where(SentenceHistory.user_telegram_id == user_telegram_id)
+            .group_by('word_id')
+        )
+        
+        result = await self.session.execute(stmt)
+        return {row.word_id: row.last_used for row in result}
+
