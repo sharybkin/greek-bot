@@ -15,7 +15,7 @@ class InlineKeyboards:
         """Create main menu keyboard."""
         buttons = [
             [InlineKeyboardButton(text="📚 Выбрать уроки", callback_data="select_lessons")],
-            [InlineKeyboardButton(text="⚙️ Настроить сложность", callback_data="set_difficulty")],
+            [InlineKeyboardButton(text="⚙️ Настройки", callback_data="settings_menu")],
             [InlineKeyboardButton(text="🎯 Начать практику", callback_data="start_practice")],
             [InlineKeyboardButton(text="🔄 Повторение слов", callback_data="start_review")],
             [InlineKeyboardButton(text="📊 Моя статистика", callback_data="show_stats")],
@@ -133,3 +133,61 @@ class InlineKeyboards:
         return InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="◀️ Назад в меню", callback_data="main_menu")]
         ])
+
+    @staticmethod
+    def settings_menu(difficulty: int, plural: bool, tense: str) -> InlineKeyboardMarkup:
+        """
+        Create settings menu keyboard.
+        
+        Args:
+            difficulty: Current difficulty level (1-3)
+            plural: Whether plural is enabled
+            tense: Current tense restriction (all, present, past, future)
+            
+        Returns:
+            InlineKeyboardMarkup with settings options
+        """
+        difficulty_text = {1: "Легко", 2: "Средне", 3: "Сложно"}.get(difficulty, "Средне")
+        plural_text = "✅ Включено" if plural else "❌ Выключено"
+        tense_map = {
+            "all": "Все времена",
+            "present": "Настоящее",
+            "past": "Прошедшее",
+            "future": "Будущее"
+        }
+        tense_text = tense_map.get(tense, "Все времена")
+        
+        buttons = [
+            [InlineKeyboardButton(text=f"📊 Сложность: {difficulty_text}", callback_data="set_difficulty")],
+            [InlineKeyboardButton(text=f"🔢 Мн. число: {plural_text}", callback_data="toggle_plural")],
+            [InlineKeyboardButton(text=f"⏳ Время: {tense_text}", callback_data="cycle_tense")],
+            [InlineKeyboardButton(text="◀️ Назад в меню", callback_data="main_menu")]
+        ]
+        return InlineKeyboardMarkup(inline_keyboard=buttons)
+    
+    @staticmethod
+    def tenses_selection(current_tense: str) -> InlineKeyboardMarkup:
+        """
+        Create tenses selection keyboard.
+        
+        Args:
+            current_tense: Current tense restriction
+            
+        Returns:
+            InlineKeyboardMarkup with tenses options
+        """
+        tenses = [
+            ("all", "Все времена"),
+            ("present", "Настоящее"),
+            ("past", "Прошедшее"),
+            ("future", "Будущее")
+        ]
+        
+        buttons = []
+        for code, name in tenses:
+            if code == current_tense:
+                name = f"✅ {name}"
+            buttons.append([InlineKeyboardButton(text=name, callback_data=f"set_tense_{code}")])
+            
+        buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="settings_menu")])
+        return InlineKeyboardMarkup(inline_keyboard=buttons)

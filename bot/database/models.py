@@ -73,6 +73,10 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     last_active_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     
+    # Settings
+    plural_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    tense_restriction: Mapped[str] = mapped_column(String(20), default='all')  # all, present, past, future
+    
     # Relationships
     review_words: Mapped[List["ReviewWord"]] = relationship(
         "ReviewWord", 

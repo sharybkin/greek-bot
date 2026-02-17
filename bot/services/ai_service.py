@@ -18,7 +18,7 @@ class AIService:
         self.model = "llama-3.3-70b-versatile"
         self.max_retries = 3
     
-    def _create_prompt(self, review_words: List[str], general_words: List[str], difficulty: int) -> str:
+    def _create_prompt(self, review_words: List[str], general_words: List[str], difficulty: int, plural: bool = True, tense: str = "all") -> str:
         """
         Create prompt for sentence generation.
         
@@ -26,6 +26,8 @@ class AIService:
             review_words: List of mandatory Greek words (must be used)
             general_words: List of optional Greek words (can be used)
             difficulty: Difficulty level (1=easy, 2=medium, 3=hard)
+            plural: Whether plural is enabled
+            tense: Tense restriction (all, present, past, future)
             
         Returns:
             Formatted prompt string
@@ -47,6 +49,19 @@ class AIService:
             instruction = f"Составь ОДНО полноценное, длинное и естественное предложение на греческом языке."
             complexity_note = "Это должно быть грамматически богатое предложение (развернутая мысль)."
 
+        # Settings Logic
+        plural_instruction = ""
+        if not plural:
+            plural_instruction = "7. !ВАЖНО! НЕ используй множественное число для существительных и прилагательных (только единственное)."
+            
+        tense_instruction = ""
+        if tense == "present":
+            tense_instruction = "8. !ВАЖНО! Используй ТОЛЬКО настоящее время (Present Tense)."
+        elif tense == "past":
+            tense_instruction = "8. !ВАЖНО! Используй ТОЛЬКО прошедшее время (Past Tense)."
+        elif tense == "future":
+            tense_instruction = "8. !ВАЖНО! Используй ТОЛЬКО будущее время (Future Tense)."
+
         review_list = ", ".join(review_words)
         general_list = ", ".join(general_words)
 
@@ -65,6 +80,8 @@ class AIService:
 4. Можно менять формы слов (падеж, число, время глагола).
 5. Добавляй артикли, предлоги и союзы для связности.
 6. Придумай подходящий контекст для слов, чтобы предложение было полезным для обучения.
+{plural_instruction}
+{tense_instruction}
 
 **ФОРМАТ ОТВЕТА (строго JSON):**
 {{
@@ -79,7 +96,9 @@ class AIService:
         self,
         review_words: List[str],
         general_words: List[str],
-        difficulty: int
+        difficulty: int,
+        plural: bool = True,
+        tense: str = "all"
     ) -> Optional[Dict[str, any]]:
         """
         Generate a sentence using given words.
@@ -88,6 +107,8 @@ class AIService:
             review_words: List of mandatory Greek words
             general_words: List of optional Greek words
             difficulty: Difficulty level (1-3)
+            plural: Whether plural is enabled
+            tense: Tense restriction (all, present, past, future)
             
         Returns:
             Dictionary with 'greek', 'russian', and 'used_greek_words' keys or None if failed
@@ -96,7 +117,7 @@ class AIService:
             logger.error("No words provided for sentence generation")
             return None
         
-        prompt = self._create_prompt(review_words, general_words, difficulty)
+        prompt = self._create_prompt(review_words, general_words, difficulty, plural, tense)
         system_prompt = "Ты - опытный лингвист и преподаватель греческого. Ты умеешь составлять глубокие, грамматически богатые предложения (с использованием придаточных предложений, союзов и артиклей), используя заданный набор слов. Твои ответы всегда в формате JSON."
         
         for attempt in range(self.max_retries):

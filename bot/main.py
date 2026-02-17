@@ -11,7 +11,7 @@ from bot.config import config
 from bot.database.database import init_db, close_db
 from bot.middlewares.user_middleware import UserMiddleware
 from bot.middlewares.throttling import ThrottlingMiddleware
-from bot.handlers import start, lessons, difficulty, practice, review, statistics
+from bot.handlers import start, lessons, difficulty, practice, review, statistics, settings
 from bot.utils.logger import logger
 
 
@@ -38,6 +38,7 @@ async def main():
     dp.include_router(practice.router)
     dp.include_router(review.router)
     dp.include_router(statistics.router)
+    dp.include_router(settings.router)
     
     # Initialize database
     try:

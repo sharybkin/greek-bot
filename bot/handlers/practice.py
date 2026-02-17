@@ -157,7 +157,9 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
     sentence_data = await ai_service.generate_sentence(
         review_words=mandatory_greek, 
         general_words=general_greek, 
-        difficulty=user.difficulty_level
+        difficulty=user.difficulty_level,
+        plural=user.plural_enabled,
+        tense=user.tense_restriction
     )
     
     if not sentence_data:
