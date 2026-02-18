@@ -135,49 +135,54 @@ class InlineKeyboards:
         ])
 
     @staticmethod
-    def settings_menu(difficulty: int, plural: bool, tense: str) -> InlineKeyboardMarkup:
+    def settings_menu(difficulty: int, plural: bool, tenses: List[str]) -> InlineKeyboardMarkup:
         """
         Create settings menu keyboard.
         
         Args:
             difficulty: Current difficulty level (1-3)
             plural: Whether plural is enabled
-            tense: Current tense restriction (all, present, past, future)
+            tenses: List of selected tenses
             
         Returns:
             InlineKeyboardMarkup with settings options
         """
         difficulty_text = {1: "Легко", 2: "Средне", 3: "Сложно"}.get(difficulty, "Средне")
         plural_text = "✅ Включено" if plural else "❌ Выключено"
+        
         tense_map = {
-            "all": "Все времена",
-            "present": "Настоящее",
-            "past": "Прошедшее",
-            "future": "Будущее"
+            "present": "Наст.",
+            "past": "Прош.",
+            "future": "Буд."
         }
-        tense_text = tense_map.get(tense, "Все времена")
+        
+        if len(tenses) == 3:
+            tenses_text = "Все времена"
+        elif not tenses:
+            tenses_text = "⚠️ Не выбрано"
+        else:
+            tenses_text = ", ".join([tense_map.get(t, t) for t in tenses])
         
         buttons = [
             [InlineKeyboardButton(text=f"📊 Сложность: {difficulty_text}", callback_data="set_difficulty")],
             [InlineKeyboardButton(text=f"🔢 Мн. число: {plural_text}", callback_data="toggle_plural")],
-            [InlineKeyboardButton(text=f"⏳ Время: {tense_text}", callback_data="cycle_tense")],
+            [InlineKeyboardButton(text=f"⏳ Время: {tenses_text}", callback_data="open_tense_selection")],
             [InlineKeyboardButton(text="◀️ Назад в меню", callback_data="main_menu")]
         ]
         return InlineKeyboardMarkup(inline_keyboard=buttons)
     
     @staticmethod
-    def tenses_selection(current_tense: str) -> InlineKeyboardMarkup:
+    def tenses_selection(current_tenses: List[str]) -> InlineKeyboardMarkup:
         """
         Create tenses selection keyboard.
         
         Args:
-            current_tense: Current tense restriction
+            current_tenses: List of currently selected tenses
             
         Returns:
             InlineKeyboardMarkup with tenses options
         """
         tenses = [
-            ("all", "Все времена"),
             ("present", "Настоящее"),
             ("past", "Прошедшее"),
             ("future", "Будущее")
@@ -185,9 +190,10 @@ class InlineKeyboards:
         
         buttons = []
         for code, name in tenses:
-            if code == current_tense:
-                name = f"✅ {name}"
-            buttons.append([InlineKeyboardButton(text=name, callback_data=f"set_tense_{code}")])
+            is_selected = code in current_tenses
+            checkbox = "✅" if is_selected else "☐"
+            text = f"{checkbox} {name}"
+            buttons.append([InlineKeyboardButton(text=text, callback_data=f"toggle_tense_{code}")])
             
-        buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="settings_menu")])
+        buttons.append([InlineKeyboardButton(text="💾 Сохранить и вернуться", callback_data="settings_menu")])
         return InlineKeyboardMarkup(inline_keyboard=buttons)

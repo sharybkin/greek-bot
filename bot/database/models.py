@@ -75,7 +75,7 @@ class User(Base):
     
     # Settings
     plural_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
-    tense_restriction: Mapped[str] = mapped_column(String(20), default='all')  # all, present, past, future
+    tense_restriction: Mapped[List[str]] = mapped_column(JSONB, server_default='["present", "past", "future"]')  # List of allowed tenses
     
     # Relationships
     review_words: Mapped[List["ReviewWord"]] = relationship(

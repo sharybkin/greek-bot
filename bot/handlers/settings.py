@@ -18,12 +18,17 @@ async def show_settings(callback: CallbackQuery, session: AsyncSession):
     user_repo = UserRepository(session)
     user = await user_repo.get_by_telegram_id(callback.from_user.id)
     
+    # Ensure tense_restriction is a list
+    tenses = user.tense_restriction
+    if not isinstance(tenses, list):
+        tenses = ["present", "past", "future"]
+        
     await callback.message.edit_text(
         "⚙️ **Настройки**\n\nЗдесь ты можешь настроить параметры генерации предложений:",
         reply_markup=InlineKeyboards.settings_menu(
             difficulty=user.difficulty_level,
             plural=user.plural_enabled,
-            tense=user.tense_restriction
+            tenses=tenses
         )
     )
     await callback.answer()
@@ -39,52 +44,74 @@ async def toggle_plural(callback: CallbackQuery, session: AsyncSession):
     user.plural_enabled = not user.plural_enabled
     await session.commit()
     
+    # Ensure tense_restriction is a list
+    tenses = user.tense_restriction
+    if not isinstance(tenses, list):
+        tenses = ["present", "past", "future"]
+    
     # Refresh menu
     await callback.message.edit_reply_markup(
         reply_markup=InlineKeyboards.settings_menu(
             difficulty=user.difficulty_level,
             plural=user.plural_enabled,
-            tense=user.tense_restriction
+            tenses=tenses
         )
     )
     await callback.answer("Настройка 'Множественное число' обновлена")
 
 
-@router.callback_query(F.data == "cycle_tense")
-async def cycle_tense(callback: CallbackQuery, session: AsyncSession):
-    """Cycle through tenses or show selection menu."""
+@router.callback_query(F.data == "open_tense_selection")
+async def open_tense_selection(callback: CallbackQuery, session: AsyncSession):
+    """Show tense selection menu."""
     user_repo = UserRepository(session)
     user = await user_repo.get_by_telegram_id(callback.from_user.id)
     
+    tenses = user.tense_restriction
+    if not isinstance(tenses, list):
+        tenses = ["present", "past", "future"]
+        
     await callback.message.edit_text(
-        "⏳ **Выберите время глаголов**\n\nКакое время использовать в предложениях?",
-        reply_markup=InlineKeyboards.tenses_selection(user.tense_restriction)
+        "⏳ **Выберите времена глаголов**\n\nОтметьте времена, которые можно использовать:",
+        reply_markup=InlineKeyboards.tenses_selection(tenses)
     )
     await callback.answer()
 
 
-@router.callback_query(F.data.startswith("set_tense_"))
-async def set_tense(callback: CallbackQuery, session: AsyncSession):
-    """Set specific tense."""
-    tense = callback.data.replace("set_tense_", "")
+@router.callback_query(F.data.startswith("toggle_tense_"))
+async def toggle_tense(callback: CallbackQuery, session: AsyncSession):
+    """Toggle specific tense."""
+    tense = callback.data.replace("toggle_tense_", "")
     
     user_repo = UserRepository(session)
     user = await user_repo.get_by_telegram_id(callback.from_user.id)
     
-    if tense in ["all", "present", "past", "future"]:
-        user.tense_restriction = tense
+    current_tenses = user.tense_restriction
+    if not isinstance(current_tenses, list):
+        current_tenses = ["present", "past", "future"]
+        
+    # Toggle logic
+    if tense in ["present", "past", "future"]:
+        if tense in current_tenses:
+            # Don't allow removing the last tense
+            if len(current_tenses) > 1:
+                current_tenses.remove(tense)
+            else:
+                await callback.answer("⚠️ Должно быть выбрано хотя бы одно время!", show_alert=True)
+                return
+        else:
+            current_tenses.append(tense)
+            
+        # Update user
+        # user.tense_restriction = list(set(current_tenses)) # Deduplicate just in case
+        # For JSONB in SQLAlchemy, sometimes reassignment is needed detection
+        user.tense_restriction = list(current_tenses)
         await session.commit()
     
-    # Return to settings
-    await callback.message.edit_text(
-        "⚙️ **Настройки**",
-        reply_markup=InlineKeyboards.settings_menu(
-            difficulty=user.difficulty_level,
-            plural=user.plural_enabled,
-            tense=user.tense_restriction
-        )
+    # Refresh selection menu
+    await callback.message.edit_reply_markup(
+        reply_markup=InlineKeyboards.tenses_selection(user.tense_restriction)
     )
-    await callback.answer("Настройка 'Время' обновлена")
+    await callback.answer()
 
 
 @router.callback_query(F.data == "set_difficulty")

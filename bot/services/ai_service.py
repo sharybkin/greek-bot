@@ -18,7 +18,7 @@ class AIService:
         self.model = "llama-3.3-70b-versatile"
         self.max_retries = 3
     
-    def _create_prompt(self, review_words: List[str], general_words: List[str], difficulty: int, plural: bool = True, tense: str = "all") -> str:
+    def _create_prompt(self, review_words: List[str], general_words: List[str], difficulty: int, plural: bool = True, tenses: List[str] = None) -> str:
         """
         Create prompt for sentence generation.
         
@@ -27,11 +27,14 @@ class AIService:
             general_words: List of optional Greek words (can be used)
             difficulty: Difficulty level (1=easy, 2=medium, 3=hard)
             plural: Whether plural is enabled
-            tense: Tense restriction (all, present, past, future)
+            tenses: List of allowed tenses (present, past, future)
             
         Returns:
             Formatted prompt string
         """
+        if tenses is None:
+            tenses = ["present", "past", "future"]
+            
         word_count_map = {
             1: (3, 5),
             2: (6, 9),
@@ -55,12 +58,17 @@ class AIService:
             plural_instruction = "7. !ВАЖНО! НЕ используй множественное число для существительных и прилагательных (только единственное)."
             
         tense_instruction = ""
-        if tense == "present":
-            tense_instruction = "8. !ВАЖНО! Используй ТОЛЬКО настоящее время (Present Tense)."
-        elif tense == "past":
-            tense_instruction = "8. !ВАЖНО! Используй ТОЛЬКО прошедшее время (Past Tense)."
-        elif tense == "future":
-            tense_instruction = "8. !ВАЖНО! Используй ТОЛЬКО будущее время (Future Tense)."
+        allowed_tenses = []
+        if "present" in tenses:
+            allowed_tenses.append("настоящее (Present)")
+        if "past" in tenses:
+            allowed_tenses.append("прошедшее (Past)")
+        if "future" in tenses:
+            allowed_tenses.append("будущее (Future)")
+            
+        if len(allowed_tenses) < 3:
+            tenses_str = " ИЛИ ".join(allowed_tenses)
+            tense_instruction = f"8. !ВАЖНО! Используй ТОЛЬКО следующие времена: {tenses_str}."
 
         review_list = ", ".join(review_words)
         general_list = ", ".join(general_words)
@@ -98,7 +106,7 @@ class AIService:
         general_words: List[str],
         difficulty: int,
         plural: bool = True,
-        tense: str = "all"
+        tenses: List[str] = None
     ) -> Optional[Dict[str, any]]:
         """
         Generate a sentence using given words.
@@ -108,16 +116,19 @@ class AIService:
             general_words: List of optional Greek words
             difficulty: Difficulty level (1-3)
             plural: Whether plural is enabled
-            tense: Tense restriction (all, present, past, future)
+            tenses: List of allowed tenses
             
         Returns:
             Dictionary with 'greek', 'russian', and 'used_greek_words' keys or None if failed
         """
+        if tenses is None:
+            tenses = ["present", "past", "future"]
+            
         if not review_words and not general_words:
             logger.error("No words provided for sentence generation")
             return None
         
-        prompt = self._create_prompt(review_words, general_words, difficulty, plural, tense)
+        prompt = self._create_prompt(review_words, general_words, difficulty, plural, tenses)
         system_prompt = "Ты - опытный лингвист и преподаватель греческого. Ты умеешь составлять глубокие, грамматически богатые предложения (с использованием придаточных предложений, союзов и артиклей), используя заданный набор слов. Твои ответы всегда в формате JSON."
         
         for attempt in range(self.max_retries):

@@ -159,7 +159,7 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
         general_words=general_greek, 
         difficulty=user.difficulty_level,
         plural=user.plural_enabled,
-        tense=user.tense_restriction
+        tenses=user.tense_restriction
     )
     
     if not sentence_data:
