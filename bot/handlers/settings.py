@@ -45,8 +45,11 @@ async def toggle_plural(callback: CallbackQuery, session: AsyncSession):
     user = await user_repo.get_by_telegram_id(callback.from_user.id)
     
     # Toggle
-    user.plural_enabled = not user.plural_enabled
-    await session.commit()
+    new_plural = not user.plural_enabled
+    await user_repo.update_plural_enabled(callback.from_user.id, new_plural)
+    
+    # Refresh user object to get updated state for UI
+    user = await user_repo.get_by_telegram_id(callback.from_user.id)
     
     # Ensure tense_restriction is a list
     tenses = user.tense_restriction
@@ -54,6 +57,7 @@ async def toggle_plural(callback: CallbackQuery, session: AsyncSession):
         tenses = ["present", "past", "future"]
     
     # Refresh menu
+    logger.info(f"User {callback.from_user.id} toggled plural to {user.plural_enabled}")
     await callback.message.edit_reply_markup(
         reply_markup=InlineKeyboards.settings_menu(
             difficulty=user.difficulty_level,
@@ -96,6 +100,9 @@ async def toggle_tense(callback: CallbackQuery, session: AsyncSession):
     current_tenses = user.tense_restriction
     if not isinstance(current_tenses, list):
         current_tenses = ["present", "past", "future"]
+    else:
+        # Create a copy to avoid in-place modification issues
+        current_tenses = list(current_tenses)
         
     # Toggle logic
     if tense in ["present", "past", "future"]:
@@ -109,11 +116,12 @@ async def toggle_tense(callback: CallbackQuery, session: AsyncSession):
         else:
             current_tenses.append(tense)
             
-        # Update user
-        # user.tense_restriction = list(set(current_tenses)) # Deduplicate just in case
-        # For JSONB in SQLAlchemy, sometimes reassignment is needed detection
-        user.tense_restriction = list(current_tenses)
-        await session.commit()
+        # Update user via repository (bypass mutation tracking issues)
+        await user_repo.update_tense_restriction(callback.from_user.id, current_tenses)
+        
+        # Refresh user object
+        user = await user_repo.get_by_telegram_id(callback.from_user.id)
+        logger.info(f"User {callback.from_user.id} updated tenses to: {user.tense_restriction}")
     
     # Refresh selection menu
     await callback.message.edit_reply_markup(
@@ -148,8 +156,9 @@ async def toggle_personal_pronouns(callback: CallbackQuery, session: AsyncSessio
     """Toggle personal pronouns setting."""
     user_repo = UserRepository(session)
     user = await user_repo.get_by_telegram_id(callback.from_user.id)
-    user.personal_pronouns_enabled = not user.personal_pronouns_enabled
-    await session.commit()
+    new_value = not user.personal_pronouns_enabled
+    await user_repo.update_extra_settings(callback.from_user.id, personal_pronouns_enabled=new_value)
+    
     await show_settings(callback, session)
     await callback.answer("Настройка 'Личные местоимения' обновлена")
 
@@ -159,8 +168,9 @@ async def toggle_possessive_pronouns(callback: CallbackQuery, session: AsyncSess
     """Toggle possessive pronouns setting."""
     user_repo = UserRepository(session)
     user = await user_repo.get_by_telegram_id(callback.from_user.id)
-    user.possessive_pronouns_enabled = not user.possessive_pronouns_enabled
-    await session.commit()
+    new_value = not user.possessive_pronouns_enabled
+    await user_repo.update_extra_settings(callback.from_user.id, possessive_pronouns_enabled=new_value)
+    
     await show_settings(callback, session)
     await callback.answer("Настройка 'Притяжательные местоимения' обновлена")
 
@@ -170,8 +180,9 @@ async def toggle_prepositions(callback: CallbackQuery, session: AsyncSession):
     """Toggle prepositions setting."""
     user_repo = UserRepository(session)
     user = await user_repo.get_by_telegram_id(callback.from_user.id)
-    user.prepositions_enabled = not user.prepositions_enabled
-    await session.commit()
+    new_value = not user.prepositions_enabled
+    await user_repo.update_extra_settings(callback.from_user.id, prepositions_enabled=new_value)
+    
     await show_settings(callback, session)
     await callback.answer("Настройка 'Предлоги' обновлена")
 
@@ -181,7 +192,8 @@ async def toggle_interrogative_words(callback: CallbackQuery, session: AsyncSess
     """Toggle interrogative words setting."""
     user_repo = UserRepository(session)
     user = await user_repo.get_by_telegram_id(callback.from_user.id)
-    user.interrogative_words_enabled = not user.interrogative_words_enabled
-    await session.commit()
+    new_value = not user.interrogative_words_enabled
+    await user_repo.update_extra_settings(callback.from_user.id, interrogative_words_enabled=new_value)
+    
     await show_settings(callback, session)
     await callback.answer("Настройка 'Вопросительные слова' обновлена")

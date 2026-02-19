@@ -152,6 +152,7 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
     mandatory_greek = [w.greek_word for w in mandatory_words]
     general_greek = [w.greek_word for w in selected_general]
     
+    logger.info(f"User {callback.from_user.id} practice settings: plural={user.plural_enabled}, tenses={user.tense_restriction}")
     logger.info(f"Generating with Mandatory: {mandatory_greek}, General: {general_greek}")
     
     sentence_data = await ai_service.generate_sentence(

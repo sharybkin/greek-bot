@@ -5,6 +5,7 @@ User repository for database operations.
 from typing import Optional, List
 from datetime import datetime
 from sqlalchemy import select, update
+from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.ext.asyncio import AsyncSession
 from bot.database.models import User, Lesson
 from bot.utils.logger import logger
@@ -255,4 +256,31 @@ class UserRepository:
             .offset(offset)
         )
         return list(result.scalars().all())
+    
+    async def update_tense_restriction(self, telegram_id: int, tenses: List[str]) -> None:
+        """Update user's tense restriction."""
+        user = await self.get_by_telegram_id(telegram_id)
+        if user:
+            user.tense_restriction = list(tenses)
+            flag_modified(user, "tense_restriction")
+            await self.session.commit()
+            logger.info(f"Updated tenses for user {telegram_id}: {user.tense_restriction}")
+
+    async def update_plural_enabled(self, telegram_id: int, enabled: bool) -> None:
+        """Update user's plural setting."""
+        user = await self.get_by_telegram_id(telegram_id)
+        if user:
+            user.plural_enabled = enabled
+            await self.session.commit()
+            logger.info(f"Updated plural for user {telegram_id}: {enabled}")
+
+    async def update_extra_settings(self, telegram_id: int, **kwargs) -> None:
+        """Update extra settings (pronouns, prepositions, etc.)."""
+        user = await self.get_by_telegram_id(telegram_id)
+        if user:
+            for key, value in kwargs.items():
+                if hasattr(user, key):
+                    setattr(user, key, value)
+            await self.session.commit()
+            logger.info(f"Updated extra settings for user {telegram_id}: {kwargs}")
 

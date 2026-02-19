@@ -70,7 +70,9 @@ class AIService:
         # Settings Logic
         plural_instruction = ""
         if not plural:
-            plural_instruction = "7. !ВАЖНО! НЕ используй множественное число для существительных и прилагательных (только единственное)."
+            plural_instruction = "7. !КРИТИЧЕСКИ ВАЖНО! ЗАПРЕЩЕНО использовать множественное число. Используй ТОЛЬКО единственное число для всех существительных, прилагательных и глаголов."
+        else:
+            plural_instruction = "7. Разрешено использовать как единственное, так и множественное число."
             
         tense_instruction = ""
         allowed_tenses = []
@@ -83,17 +85,19 @@ class AIService:
             
         if len(allowed_tenses) < 3:
             tenses_str = " ИЛИ ".join(allowed_tenses)
-            tense_instruction = f"8. !ВАЖНО! Используй ТОЛЬКО следующие времена: {tenses_str}."
+            tense_instruction = f"8. !КРИТИЧЕСКИ ВАЖНО! Используй ТОЛЬКО следующие времена: {tenses_str}. Любое другое время глагола ЗАПРЕЩЕНО."
+        else:
+            tense_instruction = "8. Разрешено использовать любые времена: настоящее, прошедшее и будущее."
 
         extra_instructions = []
         if not personal_pronouns:
-            extra_instructions.append("НЕ используй ЛИЧНЫЕ МЕСТОИМЕНИЯ (я, ты, он и т.д.).")
+            extra_instructions.append("ЗАПРЕЩЕНО использовать ЛИЧНЫЕ МЕСТОИМЕНИЯ (я, ты, он и т.д.).")
         if not possessive_pronouns:
-            extra_instructions.append("НЕ используй ПРИТЯЖАТЕЛЬНЫЕ МЕСТОИМЕНИЯ (мой, твой и т.д.).")
+            extra_instructions.append("ЗАПРЕЩЕНО использовать ПРИТЯЖАТЕЛЬНЫЕ МЕСТОИМЕНИЯ (мой, твой и т.д.).")
         if not prepositions:
-            extra_instructions.append("НЕ используй ПРЕДЛОГИ.")
+            extra_instructions.append("ЗАПРЕЩЕНО использовать ПРЕДЛОГИ.")
         if not interrogative_words:
-            extra_instructions.append("НЕ составляй вопросительные предложения и НЕ используй ВОПРОСИТЕЛЬНЫЕ СЛОВА.")
+            extra_instructions.append("ЗАПРЕЩЕНО составлять вопросительные предложения и использовать ВОПРОСИТЕЛЬНЫЕ СЛОВА.")
         
         extra_instr_str = ""
         for i, instr in enumerate(extra_instructions, 9):
@@ -178,6 +182,8 @@ class AIService:
         for attempt in range(self.max_retries):
             try:
                 logger.info(f"Generating sentence (attempt {attempt + 1}/{self.max_retries})")
+                logger.info(f"Tenses passed to AI: {tenses}")
+                logger.debug(f"Full Prompt: {prompt}")
                 logger.debug(f"Review words: {review_words}, General words: {general_words}")
                 
                 response = self.client.chat.completions.create(
