@@ -159,7 +159,11 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
         general_words=general_greek, 
         difficulty=user.difficulty_level,
         plural=user.plural_enabled,
-        tenses=user.tense_restriction
+        tenses=user.tense_restriction,
+        personal_pronouns=user.personal_pronouns_enabled,
+        possessive_pronouns=user.possessive_pronouns_enabled,
+        prepositions=user.prepositions_enabled,
+        interrogative_words=user.interrogative_words_enabled
     )
     
     if not sentence_data:

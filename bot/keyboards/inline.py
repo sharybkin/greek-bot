@@ -134,8 +134,15 @@ class InlineKeyboards:
             [InlineKeyboardButton(text="◀️ Назад в меню", callback_data="main_menu")]
         ])
 
-    @staticmethod
-    def settings_menu(difficulty: int, plural: bool, tenses: List[str]) -> InlineKeyboardMarkup:
+    def settings_menu(
+        difficulty: int, 
+        plural: bool, 
+        tenses: List[str],
+        personal_pronouns: bool = True,
+        possessive_pronouns: bool = True,
+        prepositions: bool = True,
+        interrogative_words: bool = True
+    ) -> InlineKeyboardMarkup:
         """
         Create settings menu keyboard.
         
@@ -163,10 +170,23 @@ class InlineKeyboards:
         else:
             tenses_text = ", ".join([tense_map.get(t, t) for t in tenses])
         
+        personal_pronouns_text = "✅ Личн. мест." if personal_pronouns else "❌ Личн. мест."
+        possessive_pronouns_text = "✅ Притяж. мест." if possessive_pronouns else "❌ Притяж. мест."
+        prepositions_text = "✅ Предлоги" if prepositions else "❌ Предлоги"
+        interrogative_words_text = "✅ Вопрос. слова" if interrogative_words else "❌ Вопрос. слова"
+        
         buttons = [
             [InlineKeyboardButton(text=f"📊 Сложность: {difficulty_text}", callback_data="set_difficulty")],
             [InlineKeyboardButton(text=f"🔢 Мн. число: {plural_text}", callback_data="toggle_plural")],
             [InlineKeyboardButton(text=f"⏳ Время: {tenses_text}", callback_data="open_tense_selection")],
+            [
+                InlineKeyboardButton(text=f"{personal_pronouns_text}", callback_data="toggle_personal_pronouns"),
+                InlineKeyboardButton(text=f"{possessive_pronouns_text}", callback_data="toggle_possessive_pronouns")
+            ],
+            [
+                InlineKeyboardButton(text=f"{prepositions_text}", callback_data="toggle_prepositions"),
+                InlineKeyboardButton(text=f"{interrogative_words_text}", callback_data="toggle_interrogative_words")
+            ],
             [InlineKeyboardButton(text="◀️ Назад в меню", callback_data="main_menu")]
         ]
         return InlineKeyboardMarkup(inline_keyboard=buttons)

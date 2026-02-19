@@ -18,7 +18,18 @@ class AIService:
         self.model = "llama-3.3-70b-versatile"
         self.max_retries = 3
     
-    def _create_prompt(self, review_words: List[str], general_words: List[str], difficulty: int, plural: bool = True, tenses: List[str] = None) -> str:
+    def _create_prompt(
+        self, 
+        review_words: List[str], 
+        general_words: List[str], 
+        difficulty: int, 
+        plural: bool = True, 
+        tenses: List[str] = None,
+        personal_pronouns: bool = True,
+        possessive_pronouns: bool = True,
+        prepositions: bool = True,
+        interrogative_words: bool = True
+    ) -> str:
         """
         Create prompt for sentence generation.
         
@@ -28,6 +39,10 @@ class AIService:
             difficulty: Difficulty level (1=easy, 2=medium, 3=hard)
             plural: Whether plural is enabled
             tenses: List of allowed tenses (present, past, future)
+            personal_pronouns: Whether personal pronouns are enabled
+            possessive_pronouns: Whether possessive pronouns are enabled
+            prepositions: Whether prepositions are enabled
+            interrogative_words: Whether interrogative words are enabled
             
         Returns:
             Formatted prompt string
@@ -70,6 +85,20 @@ class AIService:
             tenses_str = " ИЛИ ".join(allowed_tenses)
             tense_instruction = f"8. !ВАЖНО! Используй ТОЛЬКО следующие времена: {tenses_str}."
 
+        extra_instructions = []
+        if not personal_pronouns:
+            extra_instructions.append("НЕ используй ЛИЧНЫЕ МЕСТОИМЕНИЯ (я, ты, он и т.д.).")
+        if not possessive_pronouns:
+            extra_instructions.append("НЕ используй ПРИТЯЖАТЕЛЬНЫЕ МЕСТОИМЕНИЯ (мой, твой и т.д.).")
+        if not prepositions:
+            extra_instructions.append("НЕ используй ПРЕДЛОГИ.")
+        if not interrogative_words:
+            extra_instructions.append("НЕ составляй вопросительные предложения и НЕ используй ВОПРОСИТЕЛЬНЫЕ СЛОВА.")
+        
+        extra_instr_str = ""
+        for i, instr in enumerate(extra_instructions, 9):
+            extra_instr_str += f"{i}. !ВАЖНО! {instr}\n"
+
         review_list = ", ".join(review_words)
         general_list = ", ".join(general_words)
 
@@ -90,6 +119,7 @@ class AIService:
 6. Придумай подходящий контекст для слов, чтобы предложение было полезным для обучения.
 {plural_instruction}
 {tense_instruction}
+{extra_instr_str}
 
 **ФОРМАТ ОТВЕТА (строго JSON):**
 {{
@@ -106,7 +136,11 @@ class AIService:
         general_words: List[str],
         difficulty: int,
         plural: bool = True,
-        tenses: List[str] = None
+        tenses: List[str] = None,
+        personal_pronouns: bool = True,
+        possessive_pronouns: bool = True,
+        prepositions: bool = True,
+        interrogative_words: bool = True
     ) -> Optional[Dict[str, any]]:
         """
         Generate a sentence using given words.
@@ -128,7 +162,17 @@ class AIService:
             logger.error("No words provided for sentence generation")
             return None
         
-        prompt = self._create_prompt(review_words, general_words, difficulty, plural, tenses)
+        prompt = self._create_prompt(
+            review_words, 
+            general_words, 
+            difficulty, 
+            plural, 
+            tenses,
+            personal_pronouns,
+            possessive_pronouns,
+            prepositions,
+            interrogative_words
+        )
         system_prompt = "Ты - опытный лингвист и преподаватель греческого. Ты умеешь составлять глубокие, грамматически богатые предложения (с использованием придаточных предложений, союзов и артиклей), используя заданный набор слов. Твои ответы всегда в формате JSON."
         
         for attempt in range(self.max_retries):

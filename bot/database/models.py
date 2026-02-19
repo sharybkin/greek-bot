@@ -77,6 +77,12 @@ class User(Base):
     plural_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     tense_restriction: Mapped[List[str]] = mapped_column(JSONB, server_default='["present", "past", "future"]')  # List of allowed tenses
     
+    # Extra settings
+    personal_pronouns_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    possessive_pronouns_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    prepositions_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    interrogative_words_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    
     # Relationships
     review_words: Mapped[List["ReviewWord"]] = relationship(
         "ReviewWord", 

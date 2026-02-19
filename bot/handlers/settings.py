@@ -28,7 +28,11 @@ async def show_settings(callback: CallbackQuery, session: AsyncSession):
         reply_markup=InlineKeyboards.settings_menu(
             difficulty=user.difficulty_level,
             plural=user.plural_enabled,
-            tenses=tenses
+            tenses=tenses,
+            personal_pronouns=user.personal_pronouns_enabled,
+            possessive_pronouns=user.possessive_pronouns_enabled,
+            prepositions=user.prepositions_enabled,
+            interrogative_words=user.interrogative_words_enabled
         )
     )
     await callback.answer()
@@ -54,7 +58,11 @@ async def toggle_plural(callback: CallbackQuery, session: AsyncSession):
         reply_markup=InlineKeyboards.settings_menu(
             difficulty=user.difficulty_level,
             plural=user.plural_enabled,
-            tenses=tenses
+            tenses=tenses,
+            personal_pronouns=user.personal_pronouns_enabled,
+            possessive_pronouns=user.possessive_pronouns_enabled,
+            prepositions=user.prepositions_enabled,
+            interrogative_words=user.interrogative_words_enabled
         )
     )
     await callback.answer("Настройка 'Множественное число' обновлена")
@@ -133,3 +141,47 @@ async def show_difficulty_settings(callback: CallbackQuery, session: AsyncSessio
         reply_markup=InlineKeyboards.difficulty_selection(user.difficulty_level)
     )
     await callback.answer()
+
+
+@router.callback_query(F.data == "toggle_personal_pronouns")
+async def toggle_personal_pronouns(callback: CallbackQuery, session: AsyncSession):
+    """Toggle personal pronouns setting."""
+    user_repo = UserRepository(session)
+    user = await user_repo.get_by_telegram_id(callback.from_user.id)
+    user.personal_pronouns_enabled = not user.personal_pronouns_enabled
+    await session.commit()
+    await show_settings(callback, session)
+    await callback.answer("Настройка 'Личные местоимения' обновлена")
+
+
+@router.callback_query(F.data == "toggle_possessive_pronouns")
+async def toggle_possessive_pronouns(callback: CallbackQuery, session: AsyncSession):
+    """Toggle possessive pronouns setting."""
+    user_repo = UserRepository(session)
+    user = await user_repo.get_by_telegram_id(callback.from_user.id)
+    user.possessive_pronouns_enabled = not user.possessive_pronouns_enabled
+    await session.commit()
+    await show_settings(callback, session)
+    await callback.answer("Настройка 'Притяжательные местоимения' обновлена")
+
+
+@router.callback_query(F.data == "toggle_prepositions")
+async def toggle_prepositions(callback: CallbackQuery, session: AsyncSession):
+    """Toggle prepositions setting."""
+    user_repo = UserRepository(session)
+    user = await user_repo.get_by_telegram_id(callback.from_user.id)
+    user.prepositions_enabled = not user.prepositions_enabled
+    await session.commit()
+    await show_settings(callback, session)
+    await callback.answer("Настройка 'Предлоги' обновлена")
+
+
+@router.callback_query(F.data == "toggle_interrogative_words")
+async def toggle_interrogative_words(callback: CallbackQuery, session: AsyncSession):
+    """Toggle interrogative words setting."""
+    user_repo = UserRepository(session)
+    user = await user_repo.get_by_telegram_id(callback.from_user.id)
+    user.interrogative_words_enabled = not user.interrogative_words_enabled
+    await session.commit()
+    await show_settings(callback, session)
+    await callback.answer("Настройка 'Вопросительные слова' обновлена")

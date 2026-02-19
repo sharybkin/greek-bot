@@ -33,7 +33,15 @@ CREATE TABLE IF NOT EXISTS users (
     daily_generation_count INT DEFAULT 0,  -- Количество генераций за сегодня
     last_generation_reset TIMESTAMP DEFAULT NOW(),  -- Последний сброс счетчика
     created_at TIMESTAMP DEFAULT NOW(),
-    last_active_at TIMESTAMP DEFAULT NOW()
+    last_active_at TIMESTAMP DEFAULT NOW(),
+    
+    -- Settings
+    plural_enabled BOOLEAN DEFAULT TRUE,
+    tense_restriction JSONB DEFAULT '["present", "past", "future"]'::jsonb,
+    personal_pronouns_enabled BOOLEAN DEFAULT TRUE,
+    possessive_pronouns_enabled BOOLEAN DEFAULT TRUE,
+    prepositions_enabled BOOLEAN DEFAULT TRUE,
+    interrogative_words_enabled BOOLEAN DEFAULT TRUE
 );
 
 -- Таблица слов для повторения
