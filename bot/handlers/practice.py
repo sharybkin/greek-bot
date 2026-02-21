@@ -138,19 +138,25 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
     # We pick from the remaining pool
     available_general = [w for w in sorted_lesson_words if w.id not in mandatory_ids]
     
-    # Select up to 60 general words for context variety
+    # Select up to 60 general words for context variety (first attempt)
     general_pool_size = 60
-    # We can pick randomly from available to give variety,
-    # or continue picking from LRU if we want to force rotation even for helper words.
-    # Random from available seems better for context variety.
+    # We can pick randomly from available to give variety.
     selected_general = random.sample(
         available_general,
         min(general_pool_size, len(available_general))
     )
     
+    # Extended pool for retries (up to 2× general words)
+    extended_pool_size = general_pool_size * 2
+    selected_general_extended = random.sample(
+        available_general,
+        min(extended_pool_size, len(available_general))
+    )
+
     # Prepare lists for AI
     mandatory_greek = [w.greek_word for w in mandatory_words]
     general_greek = [w.greek_word for w in selected_general]
+    general_greek_extended = [w.greek_word for w in selected_general_extended]
     
     logger.info(f"User {callback.from_user.id} practice settings: plural={user.plural_enabled}, tenses={user.tense_restriction}")
     logger.info(f"Generating with Mandatory: {mandatory_greek}, General: {general_greek}")
@@ -164,7 +170,8 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
         personal_pronouns=user.personal_pronouns_enabled,
         possessive_pronouns=user.possessive_pronouns_enabled,
         prepositions=user.prepositions_enabled,
-        interrogative_words=user.interrogative_words_enabled
+        interrogative_words=user.interrogative_words_enabled,
+        general_words_extended=general_greek_extended
     )
     
     if not sentence_data:

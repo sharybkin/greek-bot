@@ -176,17 +176,20 @@ class AIService:
         personal_pronouns: bool = True,
         possessive_pronouns: bool = True,
         prepositions: bool = True,
-        interrogative_words: bool = True
+        interrogative_words: bool = True,
+        general_words_extended: List[str] = None
     ) -> Optional[Dict[str, any]]:
         """
         Generate a sentence using given words.
         
         Args:
             review_words: List of mandatory Greek words
-            general_words: List of optional Greek words
+            general_words: List of optional Greek words (used on first attempt)
             difficulty: Difficulty level (1-3)
             plural: Whether plural is enabled
             tenses: List of allowed tenses
+            general_words_extended: Larger pool used from attempt 2 onwards (2× general words).
+                                    If None, general_words is reused on all retries.
             
         Returns:
             Dictionary with 'greek', 'russian', and 'used_greek_words' keys or None if failed
@@ -197,7 +200,12 @@ class AIService:
         if not review_words and not general_words:
             logger.error("No words provided for sentence generation")
             return None
-        
+
+        # Build per-attempt general word pools
+        # attempt 0  → general_words (original size, e.g. 60)
+        # attempt 1+ → general_words_extended (double size, e.g. 120) if provided
+        extended_pool = general_words_extended if general_words_extended else general_words
+
         prompt_template, _ = self._create_prompt(
             review_words,
             general_words,
@@ -218,6 +226,24 @@ class AIService:
 
         for attempt in range(self.max_retries):
             try:
+                # On retries (attempt > 0), rebuild the prompt with an extended general word list
+                if attempt > 0 and extended_pool is not general_words:
+                    prompt_template, _ = self._create_prompt(
+                        review_words,
+                        extended_pool,
+                        difficulty,
+                        plural,
+                        tenses,
+                        personal_pronouns,
+                        possessive_pronouns,
+                        prepositions,
+                        interrogative_words
+                    )
+                    logger.info(
+                        f"Retry {attempt}: expanded general words from {len(general_words)} "
+                        f"to {len(extended_pool)}"
+                    )
+
                 logger.info(f"Generating sentence (attempt {attempt + 1}/{self.max_retries})")
                 logger.info(f"Tenses passed to AI: {tenses}")
 
@@ -246,6 +272,7 @@ class AIService:
                 if "greek" in result and "russian" in result:
                     greek_sentence = result["greek"].strip()
                     russian_translation = result["russian"].strip()
+                    used_words_raw = result.get("used_greek_words", [])
                     
                     if greek_sentence and russian_translation:
                         word_count = len(greek_sentence.split())
@@ -253,8 +280,10 @@ class AIService:
                         # Get boundaries for validation
                         word_count_map = {1: (3, 5), 2: (6, 9), 3: (10, 15)}
                         min_w, max_w = word_count_map.get(difficulty, (3, 5))
-                        
-                        if word_count < min_w or word_count > max_w:
+
+                        # --- Check 1: word count ---
+                        length_ok = min_w <= word_count <= max_w
+                        if not length_ok:
                             logger.warning(
                                 f"AI returned sentence with wrong length ({word_count} words, expected {min_w}-{max_w}), "
                                 f"retrying: {greek_sentence}"
@@ -265,7 +294,7 @@ class AIService:
                                 longest_fallback = {
                                     "greek": greek_sentence,
                                     "russian": russian_translation,
-                                    "used_greek_words": result.get("used_greek_words", [])
+                                    "used_greek_words": used_words_raw
                                 }
                             retry_hint_text = (
                                 f"\n> ВАЖНО: Предыдущая попытка дала {word_count} слов, а нужно от {min_w} до {max_w}. "
@@ -273,11 +302,36 @@ class AIService:
                             )
                             continue
 
+                        # --- Check 2: used words must be from the provided lists ---
+                        current_general = extended_pool if attempt > 0 else general_words
+                        invalid_words = self._validate_used_words(
+                            used_words_raw, review_words, current_general
+                        )
+                        if invalid_words:
+                            logger.warning(
+                                f"AI used words NOT in the provided lists: {invalid_words}. "
+                                f"Sentence: '{greek_sentence}'. Retrying."
+                            )
+                            # Still store as fallback (length is fine)
+                            if word_count > longest_fallback_wc:
+                                longest_fallback_wc = word_count
+                                longest_fallback = {
+                                    "greek": greek_sentence,
+                                    "russian": russian_translation,
+                                    "used_greek_words": used_words_raw
+                                }
+                            retry_hint_text = (
+                                f"\n> ВАЖНО: В предыдущей попытке ты указал слова "
+                                f"{invalid_words}, которых НЕТ в предоставленных списках. "
+                                "Используй ТОЛЬКО слова из списков ОБЯЗАТЕЛЬНЫХ и ДОПОЛНИТЕЛЬНЫХ слов."
+                            )
+                            continue
+
                         logger.info(f"Successfully generated sentence: {greek_sentence}")
                         return {
                             "greek": greek_sentence,
                             "russian": russian_translation,
-                            "used_greek_words": result.get("used_greek_words", [])
+                            "used_greek_words": used_words_raw
                         }
                 
                 logger.warning(f"Invalid response format or too short on attempt {attempt + 1}")
