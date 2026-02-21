@@ -138,13 +138,13 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
     # We pick from the remaining pool
     available_general = [w for w in sorted_lesson_words if w.id not in mandatory_ids]
     
-    # Select 15-20 general words
-    general_pool_size = random.randint(15, 20)
-    # We can pick randomly from available to give variety, 
+    # Select up to 60 general words for context variety
+    general_pool_size = 60
+    # We can pick randomly from available to give variety,
     # or continue picking from LRU if we want to force rotation even for helper words.
     # Random from available seems better for context variety.
     selected_general = random.sample(
-        available_general, 
+        available_general,
         min(general_pool_size, len(available_general))
     )
     
