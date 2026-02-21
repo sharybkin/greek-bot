@@ -106,6 +106,8 @@ class AIService:
         review_list = ", ".join(review_words)
         general_list = ", ".join(general_words)
 
+        retry_hint = ""
+
         prompt = f"""{instruction}
 
 **ОБЯЗАТЕЛЬНЫЕ СЛОВА (использовать минимум одно, лучше все):**
@@ -117,9 +119,11 @@ class AIService:
 **ОБЯЗАТЕЛЬНЫЕ ТРЕБОВАНИЯ:**
 1. Длина предложения: СТРОГО ОТ {min_words} ДО {max_words} слов.
 2. {complexity_note}
-3. !КРИТИЧЕСКИ ВАЖНО! Используй ТОЛЬКО слова из двух списков выше (в любой форме). ЗАПРЕЩЕНО добавлять любые другие слова кроме артиклей (ο, η, το, τα, τον, την, τις, τους, οι), предлогов (σε, από, με, για, στο, στη, στα, στον, στην), союзов (και, ή, αλλά, που, ότι, αν, όταν, γιατί, να, ενώ) и вспомогательных глаголов (είναι, είμαι, είσαι, είναι, είμαστε, είστε, έχω, έχεις, έχει, έχουμε, θα, δεν, δε, μην). Глаголы, существительные и прилагательные — ТОЛЬКО из предложенных списков.
+3. Старайтесь использовать ОБЯЗАТЕЛЬНЫЕ СЛОВА. Дополнительные слова используйте по необходимости.
 4. Можно менять формы слов (падеж, число, время глагола).
-5. Придумай подходящий контекст для слов, чтобы предложение было полезным для обучения.
+5. Артикли (ο/η/το/τα и падежные формы), предлоги (σε/από/με/για/στο и т.д.), союзы (και/ή/αλλά/που/ότι и т.д.) и вспомогательные глаголы (είναι/έχω/θα/δεν) добавляй свободно — они не входят в основные списки.
+6. Придумай подходящий контекст, чтобы предложение было полезным для обучения.
+{{retry_hint}}
 {plural_instruction}
 {tense_instruction}
 {extra_instr_str}
@@ -128,11 +132,40 @@ class AIService:
 {{
   "greek": "полное греческое предложение",
   "russian": "перевод всего предложения на русский",
-  "used_greek_words": ["слово1", "слово2"]  // Список греческих слов из переданных списков, которые реально были использованы (в их исходной форме из списка)
+  "used_greek_words": ["слово1", "слово2"]  // Список слов из переданных списков в их исходной форме из списка
 }}"""
-        
-        return prompt
-    
+        return prompt, retry_hint
+
+
+    def _extract_word_forms(self, words: List[str]) -> set:
+        """
+        Build a set of all lowercase tokens derived from the provided word list.
+        Handles entries like 'περίμενε / περιμένετε' or 'ο / η κτηνίατρος'.
+        """
+        import re
+        forms = set()
+        for entry in words:
+            parts = re.split(r"[/,]", entry)
+            for part in parts:
+                token = part.strip().lower()
+                token = re.sub(r"\s*\(.*?\)", "", token).strip()
+                if token:
+                    forms.add(token)
+        return forms
+
+    def _validate_used_words(
+        self, used_words: List[str], review_words: List[str], general_words: List[str]
+    ) -> list:
+        """
+        Check that every word AI reports as 'used' is present in the provided lists.
+        Returns a list of words that are NOT in the provided lists (empty → OK).
+        """
+        allowed = self._extract_word_forms(review_words + general_words)
+        return [
+            w for w in used_words
+            if w.strip().lower() not in allowed
+        ]
+
     async def generate_sentence(
         self,
         review_words: List[str],
@@ -165,11 +198,11 @@ class AIService:
             logger.error("No words provided for sentence generation")
             return None
         
-        prompt = self._create_prompt(
-            review_words, 
-            general_words, 
-            difficulty, 
-            plural, 
+        prompt_template, _ = self._create_prompt(
+            review_words,
+            general_words,
+            difficulty,
+            plural,
             tenses,
             personal_pronouns,
             possessive_pronouns,
@@ -178,10 +211,19 @@ class AIService:
         )
         system_prompt = "Ты - опытный лингвист и преподаватель греческого. Ты умеешь составлять глубокие, грамматически богатые предложения (с использованием придаточных предложений, союзов и артиклей), используя заданный набор слов. Твои ответы всегда в формате JSON."
         
+        temperatures = [0.8, 1.0, 1.2]
+        longest_fallback = None  # best result seen even if it didn't pass all checks
+        longest_fallback_wc = -1
+        retry_hint_text = ""
+
         for attempt in range(self.max_retries):
             try:
                 logger.info(f"Generating sentence (attempt {attempt + 1}/{self.max_retries})")
                 logger.info(f"Tenses passed to AI: {tenses}")
+
+                # Inject retry feedback into the prompt
+                prompt = prompt_template.replace("{retry_hint}", retry_hint_text)
+
                 logger.debug(f"Full Prompt: {prompt}")
                 logger.debug(f"Review words: {review_words}, General words: {general_words}")
                 
@@ -191,7 +233,7 @@ class AIService:
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": prompt}
                     ],
-                    temperature=0.8,
+                    temperature=temperatures[attempt],
                     max_tokens=500,
                     response_format={"type": "json_object"}
                 )
@@ -217,6 +259,18 @@ class AIService:
                                 f"AI returned sentence with wrong length ({word_count} words, expected {min_w}-{max_w}), "
                                 f"retrying: {greek_sentence}"
                             )
+                            # Keep the longest sentence as fallback
+                            if word_count > longest_fallback_wc:
+                                longest_fallback_wc = word_count
+                                longest_fallback = {
+                                    "greek": greek_sentence,
+                                    "russian": russian_translation,
+                                    "used_greek_words": result.get("used_greek_words", [])
+                                }
+                            retry_hint_text = (
+                                f"\n> ВАЖНО: Предыдущая попытка дала {word_count} слов, а нужно от {min_w} до {max_w}. "
+                                "Добавь придаточное предложение, обстоятельства времени/места/причины или дополнительный объект."
+                            )
                             continue
 
                         logger.info(f"Successfully generated sentence: {greek_sentence}")
@@ -233,5 +287,12 @@ class AIService:
             except Exception as e:
                 logger.error(f"Error generating sentence on attempt {attempt + 1}: {e}")
         
+        if longest_fallback:
+            logger.warning(
+                f"All retries failed length/word checks. Returning longest sentence as fallback "
+                f"({longest_fallback_wc} words): '{longest_fallback['greek']}'"
+            )
+            return longest_fallback
+
         logger.error("Failed to generate sentence after all retries")
         return None
