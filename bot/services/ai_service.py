@@ -165,7 +165,6 @@ class AIService:
             w for w in used_words
             if w.strip().lower() not in allowed
         ]
-
     async def generate_sentence(
         self,
         review_words: List[str],
@@ -176,20 +175,17 @@ class AIService:
         personal_pronouns: bool = True,
         possessive_pronouns: bool = True,
         prepositions: bool = True,
-        interrogative_words: bool = True,
-        general_words_extended: List[str] = None
+        interrogative_words: bool = True
     ) -> Optional[Dict[str, any]]:
         """
         Generate a sentence using given words.
         
         Args:
             review_words: List of mandatory Greek words
-            general_words: List of optional Greek words (used on first attempt)
+            general_words: List of optional Greek words
             difficulty: Difficulty level (1-3)
             plural: Whether plural is enabled
             tenses: List of allowed tenses
-            general_words_extended: Larger pool used from attempt 2 onwards (2× general words).
-                                    If None, general_words is reused on all retries.
             
         Returns:
             Dictionary with 'greek', 'russian', and 'used_greek_words' keys or None if failed
@@ -200,11 +196,6 @@ class AIService:
         if not review_words and not general_words:
             logger.error("No words provided for sentence generation")
             return None
-
-        # Build per-attempt general word pools
-        # attempt 0  → general_words (original size, e.g. 60)
-        # attempt 1+ → general_words_extended (double size, e.g. 120) if provided
-        extended_pool = general_words_extended if general_words_extended else general_words
 
         prompt_template, _ = self._create_prompt(
             review_words,
@@ -226,24 +217,6 @@ class AIService:
 
         for attempt in range(self.max_retries):
             try:
-                # On retries (attempt > 0), rebuild the prompt with an extended general word list
-                if attempt > 0 and extended_pool is not general_words:
-                    prompt_template, _ = self._create_prompt(
-                        review_words,
-                        extended_pool,
-                        difficulty,
-                        plural,
-                        tenses,
-                        personal_pronouns,
-                        possessive_pronouns,
-                        prepositions,
-                        interrogative_words
-                    )
-                    logger.info(
-                        f"Retry {attempt}: expanded general words from {len(general_words)} "
-                        f"to {len(extended_pool)}"
-                    )
-
                 logger.info(f"Generating sentence (attempt {attempt + 1}/{self.max_retries})")
                 logger.info(f"Tenses passed to AI: {tenses}")
 
@@ -303,9 +276,8 @@ class AIService:
                             continue
 
                         # --- Check 2: used words must be from the provided lists ---
-                        current_general = extended_pool if attempt > 0 else general_words
                         invalid_words = self._validate_used_words(
-                            used_words_raw, review_words, current_general
+                            used_words_raw, review_words, general_words
                         )
                         if invalid_words:
                             logger.warning(
