@@ -58,81 +58,82 @@ class AIService:
         min_words, max_words = word_count_map.get(difficulty, (3, 5))
         
         if difficulty == 1:
-            instruction = f"Составь ОДНО простое, короткое и естественное предложение на греческом языке."
-            complexity_note = "Это должно быть простое предложение, понятное новичку."
+            instruction = "Create ONE simple, short, and natural sentence in Greek."
+            complexity_note = "- Must be a simple sentence, suitable for beginners."
         elif difficulty == 2:
-            instruction = f"Составь ОДНО полноценное и естественное предложение на греческом языке."
-            complexity_note = "Это должно быть предложение средней сложности."
+            instruction = "Create ONE complete and natural sentence in Greek."
+            complexity_note = "- Must be a sentence of medium complexity."
         else:
-            instruction = f"Составь ОДНО полноценное, длинное и естественное предложение на греческом языке."
-            complexity_note = "Это должно быть грамматически богатое предложение (развернутая мысль)."
+            instruction = "Create ONE complete, long, and natural sentence in Greek."
+            complexity_note = "- Must be a grammatically rich sentence (detailed thought)."
 
         # Settings Logic
         plural_instruction = ""
         if not plural:
-            plural_instruction = "7. !КРИТИЧЕСКИ ВАЖНО! ЗАПРЕЩЕНО использовать множественное число. Используй ТОЛЬКО единственное число для всех существительных, прилагательных и глаголов."
+            plural_instruction = "- CRITICAL: NO plurals. Use ONLY singular form for nouns, adjectives, and verbs."
         else:
-            plural_instruction = "7. Разрешено использовать как единственное, так и множественное число."
+            plural_instruction = "- Plural and singular forms are both allowed."
             
         tense_instruction = ""
         allowed_tenses = []
         if "present" in tenses:
-            allowed_tenses.append("настоящее (Present)")
+            allowed_tenses.append("Present")
         if "past" in tenses:
-            allowed_tenses.append("прошедшее (Past)")
+            allowed_tenses.append("Past")
         if "future" in tenses:
-            allowed_tenses.append("будущее (Future)")
+            allowed_tenses.append("Future")
             
         if len(allowed_tenses) < 3:
-            tenses_str = " ИЛИ ".join(allowed_tenses)
-            tense_instruction = f"8. !КРИТИЧЕСКИ ВАЖНО! Используй ТОЛЬКО следующие времена: {tenses_str}. Любое другое время глагола ЗАПРЕЩЕНО."
+            tenses_str = " OR ".join(allowed_tenses)
+            tense_instruction = f"- CRITICAL: Use ONLY these tenses: {tenses_str}. Other verb tenses are FORBIDDEN."
         else:
-            tense_instruction = "8. Разрешено использовать любые времена: настоящее, прошедшее и будущее."
+            tense_instruction = "- All verb tenses allowed (Present, Past, Future)."
 
         extra_instructions = []
         if not personal_pronouns:
-            extra_instructions.append("ЗАПРЕЩЕНО использовать ЛИЧНЫЕ МЕСТОИМЕНИЯ (я, ты, он и т.д.).")
+            extra_instructions.append("NO personal pronouns (εγώ, εσύ, αυτός, etc.).")
         if not possessive_pronouns:
-            extra_instructions.append("ЗАПРЕЩЕНО использовать ПРИТЯЖАТЕЛЬНЫЕ МЕСТОИМЕНИЯ (мой, твой и т.д.).")
+            extra_instructions.append("NO possessive pronouns (μου, σου, etc.).")
         if not prepositions:
-            extra_instructions.append("ЗАПРЕЩЕНО использовать ПРЕДЛОГИ.")
+            extra_instructions.append("NO prepositions.")
         if not interrogative_words:
-            extra_instructions.append("ЗАПРЕЩЕНО составлять вопросительные предложения и использовать ВОПРОСИТЕЛЬНЫЕ СЛОВА.")
+            extra_instructions.append("NO questions or interrogative words.")
         
         extra_instr_str = ""
-        for i, instr in enumerate(extra_instructions, 9):
-            extra_instr_str += f"{i}. !ВАЖНО! {instr}\n"
+        for instr in extra_instructions:
+            extra_instr_str += f"- IMPORTANT: {instr}\n"
 
-        review_list = ", ".join(review_words)
-        general_list = ", ".join(general_words)
+        # Using space separation to compress tokens
+        review_list = " ".join(review_words)
+        general_list = " ".join(general_words)
 
         retry_hint = ""
 
         prompt = f"""{instruction}
 
-**ОБЯЗАТЕЛЬНЫЕ СЛОВА (использовать минимум одно, лучше все):**
+**MANDATORY WORDS (use at least one, preferably all):**
 {review_list}
 
-**ДОПОЛНИТЕЛЬНЫЕ СЛОВА (можно использовать для связности):**
+**ADDITIONAL WORDS (can use for context):**
 {general_list}
 
-**ОБЯЗАТЕЛЬНЫЕ ТРЕБОВАНИЯ:**
-1. Длина предложения: СТРОГО ОТ {min_words} ДО {max_words} слов.
-2. {complexity_note}
-3. Старайтесь использовать ОБЯЗАТЕЛЬНЫЕ СЛОВА. Дополнительные слова используйте по необходимости.
-4. Можно менять формы слов (падеж, число, время глагола).
-5. Артикли (ο/η/το/τα и падежные формы), предлоги (σε/από/με/για/στο и т.д.), союзы (και/ή/αλλά/που/ότι и т.д.) и вспомогательные глаголы (είναι/έχω/θα/δεν) добавляй свободно — они не входят в основные списки.
-6. Придумай подходящий контекст, чтобы предложение было полезным для обучения.
+**REQUIREMENTS:**
+- Length: STRICTLY {min_words} to {max_words} words.
+{complexity_note}
+- Try using MANDATORY WORDS. Use ADDITIONAL WORDS as needed.
+- Word forms can be changed (case, number, tense).
+- Free to add articles (ο/η/το/τα), prepositions (σε/από/με/για/στο), conjunctions (και/ή/αλλά/που/ότι), and auxiliary verbs (είναι/έχω/θα/δεν).
+- Provide a suitable learning context.
 {{retry_hint}}
 {plural_instruction}
 {tense_instruction}
-{extra_instr_str}
+{extra_instr_str.rstrip()}
 
-**ФОРМАТ ОТВЕТА (строго JSON):**
+**RESPONSE FORMAT (strict JSON):**
 {{
-  "greek": "полное греческое предложение",
-  "russian": "перевод всего предложения на русский",
-  "used_greek_words": ["слово1", "слово2"]  // Список слов из переданных списков в их исходной форме из списка
+  "greek": "full Greek sentence",
+  "russian": "Russian translation of the sentence",
+  "used_greek_words": ["word1", "word2"]
 }}"""
         return prompt, retry_hint
 
@@ -208,7 +209,7 @@ class AIService:
             prepositions,
             interrogative_words
         )
-        system_prompt = "Ты - опытный лингвист и преподаватель греческого. Ты умеешь составлять глубокие, грамматически богатые предложения (с использованием придаточных предложений, союзов и артиклей), используя заданный набор слов. Твои ответы всегда в формате JSON."
+        system_prompt = "You are an expert linguist and Greek language teacher. You create natural, grammatically rich sentences using a given set of words. Your responses are always in strict JSON format."
         
         temperatures = [0.8, 1.0, 1.2]
         longest_fallback = None  # best result seen even if it didn't pass all checks
@@ -270,8 +271,8 @@ class AIService:
                                     "used_greek_words": used_words_raw
                                 }
                             retry_hint_text = (
-                                f"\n> ВАЖНО: Предыдущая попытка дала {word_count} слов, а нужно от {min_w} до {max_w}. "
-                                "Добавь придаточное предложение, обстоятельства времени/места/причины или дополнительный объект."
+                                f"\n> IMPORTANT: Previous attempt produced {word_count} words instead of {min_w}-{max_w}. "
+                                "Add a subordinate clause, time/place expressions, or an additional object."
                             )
                             continue
 
@@ -293,9 +294,9 @@ class AIService:
                                     "used_greek_words": used_words_raw
                                 }
                             retry_hint_text = (
-                                f"\n> ВАЖНО: В предыдущей попытке ты указал слова "
-                                f"{invalid_words}, которых НЕТ в предоставленных списках. "
-                                "Используй ТОЛЬКО слова из списков ОБЯЗАТЕЛЬНЫХ и ДОПОЛНИТЕЛЬНЫХ слов."
+                                f"\n> IMPORTANT: In the previous attempt you used words "
+                                f"{invalid_words} which are NOT in the provided lists. "
+                                "Use ONLY words from the MANDATORY and ADDITIONAL word lists."
                             )
                             continue
 
