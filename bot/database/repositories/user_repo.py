@@ -134,7 +134,7 @@ class UserRepository:
         await self.session.execute(
             update(User)
             .where(User.telegram_id == telegram_id)
-            .values(selected_lessons=lesson_ids)
+            .values(selected_lessons=lesson_ids, system_prompt=None, system_prompt_updated_at=None)
         )
         await self.session.commit()
         logger.info(f"Updated selected lessons for user {telegram_id}: {lesson_ids}")
@@ -262,6 +262,8 @@ class UserRepository:
         user = await self.get_by_telegram_id(telegram_id)
         if user:
             user.tense_restriction = list(tenses)
+            user.system_prompt = None
+            user.system_prompt_updated_at = None
             flag_modified(user, "tense_restriction")
             await self.session.commit()
             logger.info(f"Updated tenses for user {telegram_id}: {user.tense_restriction}")
@@ -271,6 +273,8 @@ class UserRepository:
         user = await self.get_by_telegram_id(telegram_id)
         if user:
             user.plural_enabled = enabled
+            user.system_prompt = None
+            user.system_prompt_updated_at = None
             await self.session.commit()
             logger.info(f"Updated plural for user {telegram_id}: {enabled}")
 
@@ -281,6 +285,17 @@ class UserRepository:
             for key, value in kwargs.items():
                 if hasattr(user, key):
                     setattr(user, key, value)
+            user.system_prompt = None
+            user.system_prompt_updated_at = None
             await self.session.commit()
             logger.info(f"Updated extra settings for user {telegram_id}: {kwargs}")
+
+    async def update_system_prompt_cache(self, telegram_id: int, prompt: str) -> None:
+        """Update the cached system prompt for a user."""
+        await self.session.execute(
+            update(User)
+            .where(User.telegram_id == telegram_id)
+            .values(system_prompt=prompt, system_prompt_updated_at=datetime.now())
+        )
+        await self.session.commit()
 

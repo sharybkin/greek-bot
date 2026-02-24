@@ -83,6 +83,10 @@ class User(Base):
     prepositions_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     interrogative_words_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     
+    # Cache
+    system_prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    system_prompt_updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    
     # Relationships
     review_words: Mapped[List["ReviewWord"]] = relationship(
         "ReviewWord", 

@@ -18,55 +18,20 @@ class AIService:
         self.model = "llama-3.3-70b-versatile"
         self.max_retries = 3
     
-    def _create_prompt(
-        self, 
-        review_words: List[str], 
-        general_words: List[str], 
-        difficulty: int, 
-        plural: bool = True, 
+    def generate_system_prompt(
+        self,
+        general_words: List[str],
+        plural: bool = True,
         tenses: List[str] = None,
         personal_pronouns: bool = True,
         possessive_pronouns: bool = True,
         prepositions: bool = True,
         interrogative_words: bool = True
     ) -> str:
-        """
-        Create prompt for sentence generation.
-        
-        Args:
-            review_words: List of mandatory Greek words (must be used)
-            general_words: List of optional Greek words (can be used)
-            difficulty: Difficulty level (1=easy, 2=medium, 3=hard)
-            plural: Whether plural is enabled
-            tenses: List of allowed tenses (present, past, future)
-            personal_pronouns: Whether personal pronouns are enabled
-            possessive_pronouns: Whether possessive pronouns are enabled
-            prepositions: Whether prepositions are enabled
-            interrogative_words: Whether interrogative words are enabled
-            
-        Returns:
-            Formatted prompt string
-        """
+        """Generate a static system prompt containing rules and general words to be cached."""
         if tenses is None:
             tenses = ["present", "past", "future"]
             
-        word_count_map = {
-            1: (3, 5),
-            2: (6, 9),
-            3: (10, 15)
-        }
-        min_words, max_words = word_count_map.get(difficulty, (3, 5))
-        
-        if difficulty == 1:
-            instruction = "Create ONE simple, short, and natural sentence in Greek."
-            complexity_note = "- Must be a simple sentence, suitable for beginners."
-        elif difficulty == 2:
-            instruction = "Create ONE complete and natural sentence in Greek."
-            complexity_note = "- Must be a sentence of medium complexity."
-        else:
-            instruction = "Create ONE complete, long, and natural sentence in Greek."
-            complexity_note = "- Must be a grammatically rich sentence (detailed thought)."
-
         # Settings Logic
         plural_instruction = ""
         if not plural:
@@ -103,10 +68,41 @@ class AIService:
         for instr in extra_instructions:
             extra_instr_str += f"- IMPORTANT: {instr}\n"
 
-        # Using space separation to compress tokens
-        review_list = " ".join(review_words)
         general_list = " ".join(general_words)
 
+        return f"""You are an expert linguist and Greek language teacher. You create natural, grammatically rich sentences using a given set of words. Your responses are always in strict JSON format.
+
+**ADDITIONAL WORDS (can use for context):**
+{general_list}
+
+**GLOBAL RULES:**
+{plural_instruction}
+{tense_instruction}
+{extra_instr_str.rstrip()}
+- Word forms can be changed (case, number, tense).
+- Free to add articles (ο/η/το/τα), prepositions (σε/από/με/για/στο), conjunctions (και/ή/αλλά/που/ότι), and auxiliary verbs (είναι/έχω/θα/δεν).
+- Provide a suitable learning context."""
+
+    def _create_user_prompt(self, review_words: List[str], difficulty: int) -> str:
+        """Create user prompt for sentence generation."""
+        word_count_map = {
+            1: (3, 5),
+            2: (6, 9),
+            3: (10, 15)
+        }
+        min_words, max_words = word_count_map.get(difficulty, (3, 5))
+        
+        if difficulty == 1:
+            instruction = "Create ONE simple, short, and natural sentence in Greek."
+            complexity_note = "- Must be a simple sentence, suitable for beginners."
+        elif difficulty == 2:
+            instruction = "Create ONE complete and natural sentence in Greek."
+            complexity_note = "- Must be a sentence of medium complexity."
+        else:
+            instruction = "Create ONE complete, long, and natural sentence in Greek."
+            complexity_note = "- Must be a grammatically rich sentence (detailed thought)."
+
+        review_list = " ".join(review_words)
         retry_hint = ""
 
         prompt = f"""{instruction}
@@ -114,20 +110,11 @@ class AIService:
 **MANDATORY WORDS (use at least one, preferably all):**
 {review_list}
 
-**ADDITIONAL WORDS (can use for context):**
-{general_list}
-
 **REQUIREMENTS:**
 - Length: STRICTLY {min_words} to {max_words} words.
 {complexity_note}
-- Try using MANDATORY WORDS. Use ADDITIONAL WORDS as needed.
-- Word forms can be changed (case, number, tense).
-- Free to add articles (ο/η/το/τα), prepositions (σε/από/με/για/στο), conjunctions (και/ή/αλλά/που/ότι), and auxiliary verbs (είναι/έχω/θα/δεν).
-- Provide a suitable learning context.
+- Try using MANDATORY WORDS. Use ADDITIONAL WORDS from the system prompt as needed.
 {{retry_hint}}
-{plural_instruction}
-{tense_instruction}
-{extra_instr_str.rstrip()}
 
 **RESPONSE FORMAT (strict JSON):**
 {{
@@ -136,7 +123,6 @@ class AIService:
   "used_greek_words": ["word1", "word2"]
 }}"""
         return prompt, retry_hint
-
 
     def _extract_word_forms(self, words: List[str]) -> set:
         """
@@ -171,6 +157,7 @@ class AIService:
         review_words: List[str],
         general_words: List[str],
         difficulty: int,
+        system_prompt: Optional[str] = None,
         plural: bool = True,
         tenses: List[str] = None,
         personal_pronouns: bool = True,
@@ -183,33 +170,34 @@ class AIService:
         
         Args:
             review_words: List of mandatory Greek words
-            general_words: List of optional Greek words
+            general_words: List of optional Greek words (used if system_prompt is None)
             difficulty: Difficulty level (1-3)
-            plural: Whether plural is enabled
-            tenses: List of allowed tenses
-            
-        Returns:
-            Dictionary with 'greek', 'russian', and 'used_greek_words' keys or None if failed
+            system_prompt: Cached system prompt text
+            plural: Whether plural is enabled (used if system_prompt is None)
+            ...
         """
         if tenses is None:
             tenses = ["present", "past", "future"]
             
-        if not review_words and not general_words:
+        if not review_words and not general_words and not system_prompt:
             logger.error("No words provided for sentence generation")
             return None
 
-        prompt_template, _ = self._create_prompt(
-            review_words,
-            general_words,
-            difficulty,
-            plural,
-            tenses,
-            personal_pronouns,
-            possessive_pronouns,
-            prepositions,
-            interrogative_words
-        )
-        system_prompt = "You are an expert linguist and Greek language teacher. You create natural, grammatically rich sentences using a given set of words. Your responses are always in strict JSON format."
+        # Build or use cached system prompt
+        if system_prompt:
+            # Extract general words from system prompt for validation
+            import re
+            match = re.search(r'\*\*ADDITIONAL WORDS \(can use for context\):\*\*\n(.*)', system_prompt)
+            if match:
+                general_words = match.group(1).strip().split()
+            elif not general_words:
+                general_words = []
+        else:
+            system_prompt = self.generate_system_prompt(
+                general_words, plural, tenses, personal_pronouns, possessive_pronouns, prepositions, interrogative_words
+            )
+
+        prompt_template, _ = self._create_user_prompt(review_words, difficulty)
         
         temperatures = [0.8, 1.0, 1.2]
         longest_fallback = None  # best result seen even if it didn't pass all checks

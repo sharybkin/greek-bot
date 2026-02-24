@@ -3,7 +3,7 @@ Practice handler - main learning module.
 """
 
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 from io import BytesIO
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, BufferedInputFile
@@ -133,30 +133,48 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
             mandatory_ids.add(word.id)
             remaining_slots -= 1
             
-    # Select context words (General words)
-    # These are optional words that AI CAN use but doesn't HAVE to
-    # We pick from the remaining pool
-    available_general = [w for w in sorted_lesson_words if w.id not in mandatory_ids]
-
-    # Always select up to 300 general words for context variety
-    general_pool_size = 300
-    selected_general = random.sample(
-        available_general,
-        min(general_pool_size, len(available_general))
+    # Check if system prompt cache is fresh (less than 1 day old)
+    is_system_prompt_fresh = (
+        user.system_prompt and 
+        user.system_prompt_updated_at and 
+        datetime.now() - user.system_prompt_updated_at < timedelta(days=1)
     )
+
+    general_greek = []
+    system_prompt_to_use = user.system_prompt
+
+    if not is_system_prompt_fresh:
+        available_general = [w for w in sorted_lesson_words if w.id not in mandatory_ids]
+        general_pool_size = 300
+        selected_general = random.sample(
+            available_general,
+            min(general_pool_size, len(available_general))
+        )
+        general_greek = [w.greek_word for w in selected_general]
+        
+        system_prompt_to_use = ai_service.generate_system_prompt(
+            general_words=general_greek,
+            plural=user.plural_enabled,
+            tenses=user.tense_restriction,
+            personal_pronouns=user.personal_pronouns_enabled,
+            possessive_pronouns=user.possessive_pronouns_enabled,
+            prepositions=user.prepositions_enabled,
+            interrogative_words=user.interrogative_words_enabled
+        )
+        await user_repo.update_system_prompt_cache(callback.from_user.id, system_prompt_to_use)
 
     # Prepare lists for AI
     mandatory_greek = [w.greek_word for w in mandatory_words]
-    general_greek = [w.greek_word for w in selected_general]
 
     
     logger.info(f"User {callback.from_user.id} practice settings: plural={user.plural_enabled}, tenses={user.tense_restriction}")
-    logger.info(f"Generating with Mandatory: {mandatory_greek}, General: {general_greek}")
+    logger.info(f"Generating with Mandatory: {mandatory_greek}, Using System Prompt Cache: {is_system_prompt_fresh}")
     
     sentence_data = await ai_service.generate_sentence(
         review_words=mandatory_greek, 
         general_words=general_greek, 
         difficulty=user.difficulty_level,
+        system_prompt=system_prompt_to_use,
         plural=user.plural_enabled,
         tenses=user.tense_restriction,
         personal_pronouns=user.personal_pronouns_enabled,
@@ -176,8 +194,8 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
     used_greek_words = sentence_data.get("used_greek_words", [])
     
     # Find word objects for used words
-    # We check against both lists
-    all_candidate_words = mandatory_words + selected_general
+    # We check against ALL lesson words since general words can come from the cached prompt
+    all_candidate_words = lesson_words
     used_word_objects = []
     used_review_ids = []
     
