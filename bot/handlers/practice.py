@@ -143,17 +143,46 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
     general_greek = []
     system_prompt_to_use = user.system_prompt
 
-    if not is_system_prompt_fresh:
-        available_general = [w for w in sorted_lesson_words if w.id not in mandatory_ids]
-        general_pool_size = 300
-        selected_general = random.sample(
-            available_general,
-            min(general_pool_size, len(available_general))
-        )
-        general_greek = [w.greek_word for w in selected_general]
+    # Extract existing words from cache if fresh
+    if is_system_prompt_fresh and system_prompt_to_use:
+        import re
+        match = re.search(r'\[ (.*?) \]', system_prompt_to_use)
+        if match:
+            existing_words_str = match.group(1).strip()
+            # The words in the prompt are comma separated
+            general_greek = [w.strip() for w in existing_words_str.split(',')]
+
+    existing_tokens = set(general_greek)
+    
+    # Find words we can add (up to 100 new context words)
+    available_general = []
+    for w in sorted_lesson_words:
+        if w.id in mandatory_ids:
+            continue
+        if w.greek_word in existing_tokens:
+            continue
+        available_general.append(w)
+
+    words_to_add = 100
+    selected_new_general = random.sample(
+        available_general,
+        min(words_to_add, len(available_general))
+    )
+    new_general_greek = [w.greek_word for w in selected_new_general]
+    
+    # Prepare lists for AI
+    mandatory_greek = [w.greek_word for w in mandatory_words]
+    all_user_words_greek = [w.greek_word for w in lesson_words]
+
+    if new_general_greek or not is_system_prompt_fresh:
+        # We need to update the prompt
+        general_greek.extend(new_general_greek)
+        
+        # We combine mandatory_greek and general_greek for the system prompt
+        prompt_words = mandatory_greek + [g for g in general_greek if g not in mandatory_greek]
         
         system_prompt_to_use = ai_service.generate_system_prompt(
-            general_words=general_greek,
+            all_words=prompt_words,
             plural=user.plural_enabled,
             tenses=user.tense_restriction,
             personal_pronouns=user.personal_pronouns_enabled,
@@ -162,9 +191,6 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
             interrogative_words=user.interrogative_words_enabled
         )
         await user_repo.update_system_prompt_cache(callback.from_user.id, system_prompt_to_use)
-
-    # Prepare lists for AI
-    mandatory_greek = [w.greek_word for w in mandatory_words]
 
     
     logger.info(f"User {callback.from_user.id} practice settings: plural={user.plural_enabled}, tenses={user.tense_restriction}")
@@ -180,7 +206,8 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
         personal_pronouns=user.personal_pronouns_enabled,
         possessive_pronouns=user.possessive_pronouns_enabled,
         prepositions=user.prepositions_enabled,
-        interrogative_words=user.interrogative_words_enabled
+        interrogative_words=user.interrogative_words_enabled,
+        all_user_words=all_user_words_greek
     )
     
     if not sentence_data:

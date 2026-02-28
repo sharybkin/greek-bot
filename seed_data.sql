@@ -1,5 +1,6 @@
 -- Seed Data for Greek Learning Bot
--- Generated from lessons.js
+-- Auto-generated from lessons.js — DO NOT EDIT MANUALLY
+-- Run: python scripts/generate_seed.py
 
 -- Clear existing data
 TRUNCATE TABLE words CASCADE;
@@ -11,18 +12,18 @@ ALTER SEQUENCE words_id_seq RESTART WITH 1;
 
 -- Insert Lessons
 INSERT INTO lessons (name, order_number, description) VALUES
-('Урок 1', 1, 'Основные слова, Страны'),
-('Урок 2', 2, 'Основные слова, Глаголы'),
+('Урок 1', 1, ''),
+('Урок 2', 2, ''),
 ('Урок 3', 3, ''),
-('Урок 4', 4, 'Существительные и прилагательные, Глаголы'),
-('Урок 5', 5, 'Прилагательные, Существительные, Наречия, Вопросы, Глаголы'),
-('Урок 6', 6, 'Существительные, Глаголы, Прилагательные и наречия, Приказы'),
-('Урок 7', 7, 'Существительные, Глаголы и безличные формы, Наречия, выражения, прилагательные, Дни недели, Месяцы'),
-('Множественное число', 900, 'Существительные, Прилагательные, Глаголы, наречия и фразы'),
+('Урок 4', 4, ''),
+('Урок 5', 5, ''),
+('Урок 6', 6, ''),
+('Урок 7', 7, ''),
+('Множественное число', 900, ''),
 ('Числа 1–1000', 998, ''),
 ('Дополнительные слова', 999, '');
 
--- Insert Words for Lesson 1 (DB ID 1)
+-- Insert Words for Lesson 1 (DB ID 1: Урок 1)
 INSERT INTO words (greek_word, russian_translation, lesson_id) VALUES
 ('το βιβλίο', 'книга', 1),
 ('το τετράδιο', 'тетрадь', 1),
@@ -107,7 +108,7 @@ INSERT INTO words (greek_word, russian_translation, lesson_id) VALUES
 ('η Λευκορωσία', 'Белоруссия', 1),
 ('η Ουκρανία', 'Украина', 1);
 
--- Insert Words for Lesson 2 (DB ID 2)
+-- Insert Words for Lesson 2 (DB ID 2: Урок 2)
 INSERT INTO words (greek_word, russian_translation, lesson_id) VALUES
 ('το επώνυμο', 'фамилия', 2),
 ('το επίθετο', 'фамилия', 2),
@@ -201,7 +202,7 @@ INSERT INTO words (greek_word, russian_translation, lesson_id) VALUES
 ('πηγαίνω', 'идти, ходить, ехать, ездить', 2),
 ('περιμένω', 'ждать', 2);
 
--- Insert Words for Lesson 3 (DB ID 3)
+-- Insert Words for Lesson 3 (DB ID 3: Урок 3)
 INSERT INTO words (greek_word, russian_translation, lesson_id) VALUES
 ('η οικογένεια', 'семья', 3),
 ('η μητέρα', 'мама', 3),
@@ -313,7 +314,7 @@ INSERT INTO words (greek_word, russian_translation, lesson_id) VALUES
 ('το φωτογραφείο', 'фотоателье', 3),
 ('η φωτογραφία', 'фотография', 3);
 
--- Insert Words for Lesson 4 (DB ID 4)
+-- Insert Words for Lesson 4 (DB ID 4: Урок 4)
 INSERT INTO words (greek_word, russian_translation, lesson_id) VALUES
 ('το καφενείο / η καφετέρια', 'кафе', 4),
 ('ο σταθμός', 'станция, вокзал', 4),
@@ -407,7 +408,7 @@ INSERT INTO words (greek_word, russian_translation, lesson_id) VALUES
 ('φορώ / φοράω', 'носить', 4),
 ('φωνάζω', 'кричать, звать', 4);
 
--- Insert Words for Lesson 5 (DB ID 5)
+-- Insert Words for Lesson 5 (DB ID 5: Урок 5)
 INSERT INTO words (greek_word, russian_translation, lesson_id) VALUES
 ('μεγάλος', 'большой', 5),
 ('μικρός', 'маленький', 5),
@@ -504,7 +505,7 @@ INSERT INTO words (greek_word, russian_translation, lesson_id) VALUES
 ('κλαίω', 'плакать', 5),
 ('ακούω', 'слушать', 5);
 
--- Insert Words for Lesson 6 (DB ID 6)
+-- Insert Words for Lesson 6 (DB ID 6: Урок 6)
 INSERT INTO words (greek_word, russian_translation, lesson_id) VALUES
 ('τα μέσα μαζικής μεταφοράς', 'общественный транспорт', 6),
 ('το τρόλεϊ', 'троллейбус', 6),
@@ -648,7 +649,7 @@ INSERT INTO words (greek_word, russian_translation, lesson_id) VALUES
 ('άναψε / ανάψτε', 'включи, зажги / включите, зажгите', 6),
 ('σβήσε / σβήστε', 'выключи, потуши / выключите, потушите', 6);
 
--- Insert Words for Lesson 7 (DB ID 7)
+-- Insert Words for Lesson 7 (DB ID 7: Урок 7)
 INSERT INTO words (greek_word, russian_translation, lesson_id) VALUES
 ('ο καιρός', 'время, погода', 7),
 ('η ζέστη', 'жара', 7),
@@ -694,14 +695,6 @@ INSERT INTO words (greek_word, russian_translation, lesson_id) VALUES
 ('το βουνό (τα βουνά)', 'гора (горы)', 7),
 ('η εκκλησία', 'церковь', 7),
 ('η ομάδα', 'команда, группа', 7),
-('κανονίζω', 'договариваться, назначать', 7),
-('απεργώ (2)', 'бастовать', 7),
-('γυρίζω', 'возвращаться', 7),
-('χορεύω', 'танцевать', 7),
-('τρέχω', 'бежать, бегать, гнать', 7),
-('φυσώ (1)', 'дуть', 7),
-('βρέχει', 'идёт дождь', 7),
-('χιονίζει', 'идёт снег', 7),
 ('έξω', 'снаружи, вне', 7),
 ('όλη μέρα', 'весь день', 7),
 ('πρωί πρωί', 'рано утром', 7),
@@ -744,6 +737,14 @@ INSERT INTO words (greek_word, russian_translation, lesson_id) VALUES
 ('η Κυριακή', 'воскресенье', 7),
 ('η εβδομάδα', 'неделя', 7),
 ('το Σαββατοκύριακο', 'выходные (суббота и воскресенье)', 7),
+('κανονίζω', 'договариваться, назначать', 7),
+('απεργώ (2)', 'бастовать', 7),
+('γυρίζω', 'возвращаться', 7),
+('χορεύω', 'танцевать', 7),
+('τρέχω', 'бежать, бегать, гнать', 7),
+('φυσώ (1)', 'дуть', 7),
+('βρέχει', 'идёт дождь', 7),
+('χιονίζει', 'идёт снег', 7),
 ('ο Ιανουάριος', 'январь', 7),
 ('ο Φεβρουάριος', 'февраль', 7),
 ('ο Μάρτιος', 'март', 7),
@@ -757,7 +758,7 @@ INSERT INTO words (greek_word, russian_translation, lesson_id) VALUES
 ('ο Νοέμβριος', 'ноябрь', 7),
 ('ο Δεκέμβριος', 'декабрь', 7);
 
--- Insert Words for Lesson 900 (DB ID 8)
+-- Insert Words for Lesson 900 (DB ID 8: Множественное число)
 INSERT INTO words (greek_word, russian_translation, lesson_id) VALUES
 ('το καρναβάλι', 'карнавал', 8),
 ('οι διακοπές', 'каникулы', 8),
@@ -831,7 +832,7 @@ INSERT INTO words (greek_word, russian_translation, lesson_id) VALUES
 ('έπειτα', 'потом', 8),
 ('χάρηκα', 'я рад(а)', 8);
 
--- Insert Words for Lesson 998 (DB ID 9)
+-- Insert Words for Lesson 998 (DB ID 9: Числа 1–1000)
 INSERT INTO words (greek_word, russian_translation, lesson_id) VALUES
 ('ένα', '1', 9),
 ('δύο', '2', 9),
@@ -871,7 +872,7 @@ INSERT INTO words (greek_word, russian_translation, lesson_id) VALUES
 ('εννιακόσια', '900', 9),
 ('χίλια', '1000', 9);
 
--- Insert Words for Lesson 999 (DB ID 10)
+-- Insert Words for Lesson 999 (DB ID 10: Дополнительные слова)
 INSERT INTO words (greek_word, russian_translation, lesson_id) VALUES
 ('σήμερα', 'сегодня', 10),
 ('τίποτα', 'ничего', 10),
