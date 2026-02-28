@@ -110,7 +110,7 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
     
     sorted_lesson_words = sorted(
         lesson_words,
-        key=lambda w: word_usage.get(w.id, never_used_date)
+        key=lambda w: (getattr(w, 'general_priority', 10), word_usage.get(w.id, never_used_date))
     )
 
     # Determine how many mandatory words we need

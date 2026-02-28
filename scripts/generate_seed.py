@@ -24,7 +24,7 @@ WORDS_PY   = os.path.join(os.path.dirname(__file__), "..", "bot", "data", "words
 # ---------------------------------------------------------------------------
 
 def parse_lessons_js(path: str) -> list[dict]:
-    """Return list of {lesson_num, title, words:[{greek,russian}]}."""
+    """Return list of {lesson_num, title, words:[{greek,russian,general_priority}]}."""
     with open(path, encoding="utf-8") as f:
         content = f.read()
 
@@ -87,11 +87,13 @@ def parse_lessons_js(path: str) -> list[dict]:
         # words array
         words = []
         for m_word in re.finditer(
-            r"\{\s*greek:\s*['\"]([^'\"]+)['\"]\s*,\s*russian:\s*['\"]([^'\"]+)['\"]\s*\}", block
+            r"\{\s*greek:\s*['\"]([^'\"]+)['\"]\s*,\s*russian:\s*['\"]([^'\"]+)['\"]\s*(?:,\s*general_priority:\s*(\d+))?\s*\}", block
         ):
             greek   = m_word.group(1).strip()
             russian = m_word.group(2).strip()
-            words.append({"greek": greek, "russian": russian})
+            pri_str = m_word.group(3)
+            priority = int(pri_str) if pri_str else 10
+            words.append({"greek": greek, "russian": russian, "general_priority": priority})
 
         lessons.append({"lesson_num": lesson_num, "title": title, "words": words})
 
@@ -174,12 +176,13 @@ def generate_sql(merged: dict[int, dict], id_map: dict[int, int]) -> str:
         db_id  = id_map[major]
         title  = les["title"]
         lines.append(f"-- Insert Words for Lesson {major} (DB ID {db_id}: {title})")
-        lines.append("INSERT INTO words (greek_word, russian_translation, lesson_id) VALUES")
+        lines.append("INSERT INTO words (greek_word, russian_translation, lesson_id, general_priority) VALUES")
         word_vals = []
         for w in les["words"]:
             greek   = w["greek"].replace("'", "''")
             russian = w["russian"].replace("'", "''")
-            word_vals.append(f"('{greek}', '{russian}', {db_id})")
+            pri     = w.get("general_priority", 10)
+            word_vals.append(f"('{greek}', '{russian}', {db_id}, {pri})")
         lines.append(",\n".join(word_vals) + ";")
         lines.append("")
 
@@ -207,7 +210,7 @@ def generate_words_py(merged: dict[int, dict], id_map: dict[int, int]) -> str:
         "from typing import Dict, List",
         "",
         "# Each lesson keyed by its DB lesson_id",
-        "# Value: { 'title': str, 'words': [{'greek': str, 'russian': str}] }",
+        "# Value: { 'title': str, 'words': [{'greek': str, 'russian': str, 'general_priority': int}] }",
         "LESSONS_BY_ID: Dict[int, dict] = {",
     ]
 
@@ -220,7 +223,8 @@ def generate_words_py(merged: dict[int, dict], id_map: dict[int, int]) -> str:
         lines.append(f"        'lesson_num': {major},")
         lines.append(f"        'words': [")
         for w in les["words"]:
-            lines.append(f"            {{'greek': {repr(w['greek'])}, 'russian': {repr(w['russian'])}}},")
+            pri = w.get('general_priority', 10)
+            lines.append(f"            {{'greek': {repr(w['greek'])}, 'russian': {repr(w['russian'])}, 'general_priority': {pri}}},")
         lines.append(f"        ],")
         lines.append(f"    }},")
 
@@ -247,15 +251,17 @@ def generate_words_py(merged: dict[int, dict], id_map: dict[int, int]) -> str:
     # Also expose words grouped by lesson_id in a flat way
     lines.append("")
     lines.append("def get_words_for_lessons(lesson_ids: List[int]) -> List[str]:")
-    lines.append('    """Return flat list of greek words for given lesson DB IDs."""')
+    lines.append('    """Return flat list of greek words for given lesson DB IDs. Sorted by priority."""')
     lines.append("    result = []")
     lines.append("    seen = set()")
+    lines.append("    word_objs = []")
     lines.append("    for lid in lesson_ids:")
     lines.append("        for w in LESSONS_BY_ID.get(lid, {}).get('words', []):")
     lines.append("            if w['greek'] not in seen:")
     lines.append("                seen.add(w['greek'])")
-    lines.append("                result.append(w['greek'])")
-    lines.append("    return result")
+    lines.append("                word_objs.append(w)")
+    lines.append("    word_objs.sort(key=lambda x: x.get('general_priority', 10))")
+    lines.append("    return [w['greek'] for w in word_objs]")
     lines.append("")
 
     return "\n".join(lines)
@@ -308,4 +314,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

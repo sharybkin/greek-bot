@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS words (
     greek_word VARCHAR(200) NOT NULL,
     russian_translation VARCHAR(300) NOT NULL,
     lesson_id INT REFERENCES lessons(id) ON DELETE CASCADE,
+    general_priority INT DEFAULT 10,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -41,7 +42,9 @@ CREATE TABLE IF NOT EXISTS users (
     personal_pronouns_enabled BOOLEAN DEFAULT TRUE,
     possessive_pronouns_enabled BOOLEAN DEFAULT TRUE,
     prepositions_enabled BOOLEAN DEFAULT TRUE,
-    interrogative_words_enabled BOOLEAN DEFAULT TRUE
+    interrogative_words_enabled BOOLEAN DEFAULT TRUE,
+    system_prompt TEXT,
+    system_prompt_updated_at TIMESTAMP
 );
 
 -- Таблица слов для повторения
