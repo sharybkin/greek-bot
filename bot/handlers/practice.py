@@ -108,7 +108,14 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
     # We assign a default very old date for never used words to safely sort
     never_used_date = datetime.min
     
-    sorted_lesson_words = sorted(
+    # For testing user knowledge (LRU first)
+    mandatory_sorted = sorted(
+        lesson_words,
+        key=lambda w: word_usage.get(w.id, never_used_date)
+    )
+    
+    # For AI background context (Priority first, then LRU)
+    general_sorted = sorted(
         lesson_words,
         key=lambda w: (getattr(w, 'general_priority', 10), word_usage.get(w.id, never_used_date))
     )
@@ -125,7 +132,7 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
     # Skip words already in mandatory list (e.g. if review word is also in lesson words)
     remaining_slots = max(0, target_count - len(mandatory_words))
     
-    for word in sorted_lesson_words:
+    for word in mandatory_sorted:
         if remaining_slots <= 0:
             break
         if word.id not in mandatory_ids:
@@ -156,7 +163,7 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
     
     # Find words we can add (up to 100 new context words)
     available_general = []
-    for w in sorted_lesson_words:
+    for w in general_sorted:
         if w.id in mandatory_ids:
             continue
         if w.greek_word in existing_tokens:
@@ -164,10 +171,7 @@ async def start_practice(callback: CallbackQuery, session: AsyncSession):
         available_general.append(w)
 
     words_to_add = 100
-    selected_new_general = random.sample(
-        available_general,
-        min(words_to_add, len(available_general))
-    )
+    selected_new_general = available_general[:words_to_add]
     new_general_greek = [w.greek_word for w in selected_new_general]
     
     # Prepare lists for AI
