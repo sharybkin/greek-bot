@@ -7,7 +7,7 @@ import json
 import re
 import unicodedata
 from typing import List, Dict, Optional
-from openai import AsyncOpenAI
+from groq import AsyncGroq
 from bot.config import config
 from bot.utils.logger import logger
 
@@ -136,7 +136,7 @@ def _build_stem_set(allowed_tokens: set[str]) -> set[str]:
 
 
 class AIService:
-    """Service for AI-powered sentence generation using LM Studio (OpenAI-compatible).
+    """Service for AI-powered sentence generation using Groq API.
     
     Vocabulary policy
     -----------------
@@ -149,11 +149,8 @@ class AIService:
     """
 
     def __init__(self):
-        self.client = AsyncOpenAI(
-            base_url=config.lm_studio_base_url,
-            api_key="lm-studio"
-        )
-        self.model = config.lm_studio_model
+        self.client = AsyncGroq(api_key=config.groq_api_key)
+        self.model = config.groq_model
         self.max_retries = 5
 
     # ------------------------------------------------------------------

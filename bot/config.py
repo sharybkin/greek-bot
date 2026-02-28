@@ -23,9 +23,8 @@ class Config:
     database_url: str
     
     # AI Services
-    groq_api_key: Optional[str]
-    lm_studio_base_url: str
-    lm_studio_model: str
+    groq_api_key: str
+    groq_model: str
     google_credentials_path: str
     
     # Logging
@@ -48,9 +47,10 @@ class Config:
             raise ValueError("DATABASE_URL is not set")
         
         groq_api_key = os.getenv("GROQ_API_KEY")
-        
-        lm_studio_base_url = os.getenv("LM_STUDIO_BASE_URL", "http://localhost:1234/v1")
-        lm_studio_model = os.getenv("LM_STUDIO_MODEL", "Llama-Krikri-8B-Instruct-GGUF")
+        if not groq_api_key:
+            raise ValueError("GROQ_API_KEY is not set")
+            
+        groq_model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
         
         google_credentials_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "/app/google-credentials.json")
         
@@ -70,8 +70,7 @@ class Config:
             telegram_bot_token=telegram_bot_token,
             database_url=database_url,
             groq_api_key=groq_api_key,
-            lm_studio_base_url=lm_studio_base_url,
-            lm_studio_model=lm_studio_model,
+            groq_model=groq_model,
             google_credentials_path=google_credentials_path,
             log_level=log_level,
             admin_user_ids=admin_user_ids

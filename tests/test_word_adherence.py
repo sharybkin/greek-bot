@@ -2,18 +2,15 @@
 Test environment: validates that AI-generated sentences ONLY use words
 from the user's word list (+ the verb είναι + articles/conjunctions).
 
-Usage:
-  # Full tests against live LM Studio (must be running on localhost:1234)
-  python tests/test_word_adherence.py --verbose
-
-  # Validate ONLY the Python validator logic (no LM Studio needed)
-  python tests/test_word_adherence.py --mock
-
-  # Repeat each case N times
-  python tests/test_word_adherence.py --runs 3
-
-  # Override LM Studio URL for local testing (bypasses docker internal URL)
-  LM_STUDIO_BASE_URL=http://localhost:1234/v1 python tests/test_word_adherence.py
+# Usage:
+#   # Full tests against live Groq API
+#   python tests/test_word_adherence.py --verbose
+# 
+#   # Validate ONLY the Python validator logic (no API calls)
+#   python tests/test_word_adherence.py --mock
+# 
+#   # Repeat each case N times
+#   python tests/test_word_adherence.py --runs 3
 """
 
 import asyncio
@@ -28,9 +25,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 # Make project root importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-# Override Docker URL to localhost for local test runs (if not already set externally)
-if "LM_STUDIO_BASE_URL" not in os.environ:
-    os.environ.setdefault("LM_STUDIO_BASE_URL", "http://localhost:1234/v1")
+
 
 from bot.services.ai_service import (
     AIService,
@@ -413,15 +408,10 @@ async def run_test_case(
 # ──────────────────────────────────────────────────────────────────────────────
 
 async def main(verbose: bool, runs: int, mock: bool):
-    mode = "MOCK" if mock else "LIVE (LM Studio)"
+    mode = "MOCK" if mock else "LIVE (Groq)"
     print("═" * 62)
     print(f"  Greek Bot — Word Adherence Test Suite  [{mode}]")
     print("═" * 62)
-
-    if not mock:
-        url = os.environ.get("LM_STUDIO_BASE_URL", "http://localhost:1234/v1")
-        print(f"  LM Studio URL : {url}")
-        print(f"  Tip: set LM_STUDIO_BASE_URL to override")
 
     service = AIService()
     test_cases = MOCK_TEST_CASES if mock else LIVE_TEST_CASES
